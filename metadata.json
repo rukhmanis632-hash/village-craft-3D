@@ -1,0 +1,6 @@
+{
+  "name": "Horizon Dash",
+  "description": "3D endless runner adventure across Ancient Ruins, Cyber City, Lava Cave, and Snowy Peak with ultra-detailed 3D worlds and legends.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

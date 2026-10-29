@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">Horizon Dash</string>
+    <string name="title_main">HORIZON\nDASH</string>
+    <string name="btn_play">PLAY</string>
+    <string name="btn_run_again">RUN AGAIN</string>
+    <string name="btn_main_menu">MAIN MENU</string>
+    <string name="btn_main_menu_hi">मुख्य मेन्यू</string>
+    <string name="btn_upgrades">UPGRADES</string>
+    <string name="btn_upgrades_hi">अपग्रेड</string>
+    <string name="btn_characters">CHARACTERS</string>
+    <string name="btn_characters_hi">पात्र</string>
+    <string name="btn_worlds">WORLDS &amp; BOARDS</string>
+    <string name="btn_worlds_hi">दुनिया और चुनौतियाँ</string>
+    <string name="btn_leaderboard">LEADERBOARD</string>
+    <string name="btn_leaderboard_hi">लीडरबोर्ड</string>
+    <string name="btn_settings">SETTINGS</string>
+    <string name="btn_settings_hi">सेटिंग्स</string>
+    <string name="btn_shop">SHOP</string>
+    <string name="btn_shop_hi">शॉप</string>
+    <string name="swipe_up">SWIPE UP</string>
+    <string name="swipe_up_hi">ऊपर स्वाइप करें</string>
+    <string name="swipe_down">SWIPE DOWN</string>
+    <string name="swipe_down_hi">नीचे स्वाइप करें</string>
+    <string name="daily_challenges">DAILY CHALLENGES</string>
+    <string name="daily_challenges_hi">रोजाना की चुनौतियां</string>
+    <string name="select_world_title">SELECT WORLD &amp; JOURNEY</string>
+    <string name="game_over_title">GAME OVER</string>
+    <string name="run_summary">RUN SUMMARY</string>
+    <string name="run_summary_hi">रन का विवरण</string>
+    <string name="item_unlocked">ITEM UNLOCKED!</string>
+</resources>

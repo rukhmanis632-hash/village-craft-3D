@@ -1,0 +1,181 @@
+{
+  "entities": {
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "description": "Cloud-synced player progression, currencies, upgrades, unlocked gear, and world high scores.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the authenticated Google user."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the player (1..50 chars)."
+        },
+        "coins": {
+          "type": "integer",
+          "description": "Total gold coins owned by the player."
+        },
+        "rubies": {
+          "type": "integer",
+          "description": "Total ruby gems owned by the player."
+        },
+        "selectedWorld": {
+          "type": "integer",
+          "description": "Active world index (0..3)."
+        },
+        "selectedChar": {
+          "type": "string",
+          "description": "Active runner character ID."
+        },
+        "selectedBoard": {
+          "type": "string",
+          "description": "Active hoverboard ID."
+        },
+        "challengeDist": {
+          "type": "integer",
+          "description": "Daily challenge meters progress (0..2000)."
+        },
+        "challengeGems": {
+          "type": "integer",
+          "description": "Daily challenge ruby gems progress (0..5)."
+        },
+        "magnetLevel": {
+          "type": "integer",
+          "description": "Magnet upgrade level (1..50)."
+        },
+        "shieldLevel": {
+          "type": "integer",
+          "description": "Shield upgrade level (1..50)."
+        },
+        "boostLevel": {
+          "type": "integer",
+          "description": "Speed Boost upgrade level (1..50)."
+        },
+        "multiplierLevel": {
+          "type": "integer",
+          "description": "Score Multiplier upgrade level (1..50)."
+        },
+        "highScoreW0": {
+          "type": "integer",
+          "description": "High score in World 0 (Ancient Ruins)."
+        },
+        "highScoreW1": {
+          "type": "integer",
+          "description": "High score in World 1 (Cyber City)."
+        },
+        "highScoreW2": {
+          "type": "integer",
+          "description": "High score in World 2 (Lava Cave)."
+        },
+        "highScoreW3": {
+          "type": "integer",
+          "description": "High score in World 3 (Snowy Peak)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "coins",
+        "rubies",
+        "selectedWorld",
+        "selectedChar",
+        "selectedBoard",
+        "challengeDist",
+        "challengeGems",
+        "magnetLevel",
+        "shieldLevel",
+        "boostLevel",
+        "multiplierLevel",
+        "highScoreW0",
+        "highScoreW1",
+        "highScoreW2",
+        "highScoreW3",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RunRecord": {
+      "title": "RunRecord",
+      "description": "Individual endless runner match summary stored for cloud history and personal leaderboards.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID matching request.auth.uid."
+        },
+        "runnerName": {
+          "type": "string",
+          "description": "Display name of the player or character."
+        },
+        "worldId": {
+          "type": "integer",
+          "description": "World ID where the run took place (0..3)."
+        },
+        "characterId": {
+          "type": "string",
+          "description": "Character ID used during the run."
+        },
+        "score": {
+          "type": "integer",
+          "description": "Total run score achieved."
+        },
+        "distanceMeters": {
+          "type": "integer",
+          "description": "Total distance run in meters."
+        },
+        "coinsCollected": {
+          "type": "integer",
+          "description": "Coins collected during the run."
+        },
+        "rubiesCollected": {
+          "type": "integer",
+          "description": "Rubies collected during the run."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "runnerName",
+        "worldId",
+        "characterId",
+        "score",
+        "distanceMeters",
+        "coinsCollected",
+        "rubiesCollected",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "PlayerProfile",
+      "description": "Per-user cloud profile document keyed by authenticated userId."
+    },
+    "/run_records/{recordId}": {
+      "schema": "RunRecord",
+      "description": "Root collection of completed run records scoped by userId."
+    }
+  }
+}
