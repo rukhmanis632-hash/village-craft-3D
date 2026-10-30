@@ -18,7 +18,8 @@ enum class ModalType {
     SETTINGS,
     SHOP,
     PAUSE,
-    INSPECT_3D
+    INSPECT_3D,
+    STORY_LORE
 }
 
 enum class RoadStyle {
@@ -162,11 +163,33 @@ val WORLD_THEMES = listOf(
     )
 )
 
+/**
+ * Iconic 3D Endless Runner Character Archetypes inspired by top-charting 3D mobile runner games
+ * (Subway Surfers, Sonic Dash, Blades of Brim, Jetpack Joyride):
+ * - STREET_REBEL: Backwards Street Cap + Studio Headphones + Layered Hoodie + Chunky High-Tops
+ * - CYBER_NINJA: Spiky Anime Hair + Neon Visor + Twin Flowing 3D Energy Scarf Ribbons
+ * - VALKYRIE_HERO: Floating Radiant Halo Crown + Hard-Light Energy Wings + Paladin Pauldrons
+ * - MECHA_STRIKER: Horned Cyber-Helm + Dual Plasma Jetpack Thrusters with Live Flame Cones
+ * - KITSUNE_MASCOT: Pointed 3D Neon Fox Ears + Cyber Mask + Twin Swaying 3D Kitsune Tails
+ * - ROYAL_FLEX: Floating 3D Gold Crown + Luxury Varsity Jacket + Diamond Aura & Gold Kicks
+ */
+enum class CharacterStyle {
+    STREET_REBEL,
+    CYBER_NINJA,
+    VALKYRIE_HERO,
+    MECHA_STRIKER,
+    KITSUNE_MASCOT,
+    ROYAL_FLEX
+}
+
 data class RunnerCharacter(
     val id: String,
     val name: String,
     val hiName: String,
     val roleTitle: String,
+    val signatureGear: String,
+    val badgeEmoji: String,
+    val style: CharacterStyle,
     val shirtColor: Color,
     val shirtHighlight: Color,
     val pantsColor: Color,
@@ -187,30 +210,36 @@ data class RunnerCharacter(
 val RUNNER_CHARACTERS = listOf(
     RunnerCharacter(
         id = "leo",
-        name = "Explorer Leo",
-        hiName = "खोजकर्ता लियो",
-        roleTitle = "Relic Pathfinder",
+        name = "Street Rebel Leo",
+        hiName = "स्ट्रीट रेबेल लियो",
+        roleTitle = "Urban Parkour Surfer",
+        signatureGear = "Street Cap • Studio Headphones • Spray Pack",
+        badgeEmoji = "🎧",
+        style = CharacterStyle.STREET_REBEL,
         shirtColor = Color(0xFF1E6BE6),
         shirtHighlight = Color(0xFF4D94FF),
-        pantsColor = Color(0xFF282B36),
-        pantsStripe = Color(0xFF4C5266),
-        backpackColor = Color(0xFF3E612E),
-        backpackFlapColor = Color(0xFF527A3E),
+        pantsColor = Color(0xFF222634),
+        pantsStripe = Color(0xFF64FFDA),
+        backpackColor = Color(0xFFD93829),
+        backpackFlapColor = Color(0xFFFFB700),
         skinColor = Color(0xFFD99B72),
         skinShadow = Color(0xFFB37852),
         hairColor = Color(0xFF3B2314),
-        shoeColor = Color(0xFF1E6BE6),
+        shoeColor = Color(0xFFFF2E55),
         shoeSoleColor = Color(0xFFF2F5FA),
-        gloveColor = Color(0xFF2E2622),
+        gloveColor = Color(0xFF232733),
         accentGlow = Color(0xFFFFD03B),
-        speedRating = 92,
-        auraBonus = 10
+        speedRating = 94,
+        auraBonus = 12
     ),
     RunnerCharacter(
         id = "kai",
         name = "Cyber Ninja Kai",
         hiName = "साइबर निंजा काई",
-        roleTitle = "Neon Phantom",
+        roleTitle = "Supersonic Shinobi",
+        signatureGear = "Spiky Hair • Cyber Visor • Twin Energy Scarf",
+        badgeEmoji = "⚡",
+        style = CharacterStyle.CYBER_NINJA,
         shirtColor = Color(0xFF0E2A47),
         shirtHighlight = Color(0xFF00F0FF),
         pantsColor = Color(0xFF141829),
@@ -219,24 +248,51 @@ val RUNNER_CHARACTERS = listOf(
         backpackFlapColor = Color(0xFFFF007F),
         skinColor = Color(0xFFE0AC8B),
         skinShadow = Color(0xFFB88465),
-        hairColor = Color(0xFF1A1F33),
+        hairColor = Color(0xFF00E5FF),
         shoeColor = Color(0xFF00E5FF),
         shoeSoleColor = Color(0xFFFF007F),
         gloveColor = Color(0xFF12182B),
         accentGlow = Color(0xFF00F0FF),
-        speedRating = 98,
-        auraBonus = 15
+        speedRating = 99,
+        auraBonus = 18
+    ),
+    RunnerCharacter(
+        id = "aria",
+        name = "Solar Valkyrie Aria",
+        hiName = "सोलर वाल्किरी आरिया",
+        roleTitle = "Astral Wing Knight",
+        signatureGear = "Floating Halo • Hard-Light Wings • Aegis Armor",
+        badgeEmoji = "🪽",
+        style = CharacterStyle.VALKYRIE_HERO,
+        shirtColor = Color(0xFFEAF6FF),
+        shirtHighlight = Color(0xFF70D6FF),
+        pantsColor = Color(0xFF1D4E89),
+        pantsStripe = Color(0xFFFFD43B),
+        backpackColor = Color(0xFF246A9E),
+        backpackFlapColor = Color(0xFFFFE066),
+        skinColor = Color(0xFFF0C4A8),
+        skinShadow = Color(0xFFC99B7E),
+        hairColor = Color(0xFFFFD15C),
+        shoeColor = Color(0xFF38B6FF),
+        shoeSoleColor = Color(0xFFFFFFFF),
+        gloveColor = Color(0xFF1B3B5C),
+        accentGlow = Color(0xFF5CD6FF),
+        speedRating = 97,
+        auraBonus = 22
     ),
     RunnerCharacter(
         id = "ignis",
-        name = "Magma Vanguard",
-        hiName = "मैग्मा योद्धा",
-        roleTitle = "Volcanic Titan",
+        name = "Blaze Striker Ignis",
+        hiName = "ब्लेज़ स्ट्राइकर इग्निस",
+        roleTitle = "Jetpack Vanguard",
+        signatureGear = "Horned Visor Helm • Dual Plasma Jet-Thrusters",
+        badgeEmoji = "🚀",
+        style = CharacterStyle.MECHA_STRIKER,
         shirtColor = Color(0xFFC43000),
         shirtHighlight = Color(0xFFFF6A00),
         pantsColor = Color(0xFF241512),
         pantsStripe = Color(0xFFFF8800),
-        backpackColor = Color(0xFF4A2210),
+        backpackColor = Color(0xFF3A1E14),
         backpackFlapColor = Color(0xFFFFAE00),
         skinColor = Color(0xFFB87A56),
         skinShadow = Color(0xFF8F593A),
@@ -245,29 +301,56 @@ val RUNNER_CHARACTERS = listOf(
         shoeSoleColor = Color(0xFFFFCC4D),
         gloveColor = Color(0xFF38190E),
         accentGlow = Color(0xFFFF6600),
-        speedRating = 95,
+        speedRating = 96,
         auraBonus = 20
     ),
     RunnerCharacter(
-        id = "aria",
-        name = "Glacier Ranger",
-        hiName = "ग्लेशियर रेंजर",
-        roleTitle = "Summit Valkyrie",
-        shirtColor = Color(0xFFEAF6FF),
-        shirtHighlight = Color(0xFF70D6FF),
-        pantsColor = Color(0xFF1D4E89),
-        pantsStripe = Color(0xFF80DCFF),
-        backpackColor = Color(0xFF246A9E),
-        backpackFlapColor = Color(0xFF4CC9F0),
-        skinColor = Color(0xFFF0C4A8),
-        skinShadow = Color(0xFFC99B7E),
-        hairColor = Color(0xFF593825),
-        shoeColor = Color(0xFF38B6FF),
-        shoeSoleColor = Color(0xFFFFFFFF),
-        gloveColor = Color(0xFF1B3B5C),
-        accentGlow = Color(0xFF5CD6FF),
-        speedRating = 96,
-        auraBonus = 18
+        id = "nova",
+        name = "Kitsune Spirit Nova",
+        hiName = "कित्सुने स्पिरिट नोवा",
+        roleTitle = "Neon Fox Mascot",
+        signatureGear = "3D Neon Fox Ears • Twin Glowing Kitsune Tails",
+        badgeEmoji = "🦊",
+        style = CharacterStyle.KITSUNE_MASCOT,
+        shirtColor = Color(0xFFB57CFF),
+        shirtHighlight = Color(0xFF64FFDA),
+        pantsColor = Color(0xFF18142C),
+        pantsStripe = Color(0xFFFF6EC7),
+        backpackColor = Color(0xFF2C1E4A),
+        backpackFlapColor = Color(0xFF64FFDA),
+        skinColor = Color(0xFFE8B49A),
+        skinShadow = Color(0xFFC28C72),
+        hairColor = Color(0xFFFF5E9E),
+        shoeColor = Color(0xFFFF36AB),
+        shoeSoleColor = Color(0xFF64FFDA),
+        gloveColor = Color(0xFF1F1638),
+        accentGlow = Color(0xFF64FFDA),
+        speedRating = 99,
+        auraBonus = 25
+    ),
+    RunnerCharacter(
+        id = "kairo",
+        name = "Royal Legend Kairo",
+        hiName = "रॉयल लीजेंड काइरो",
+        roleTitle = "Golden Crown Champion",
+        signatureGear = "3D Gold Crown • Diamond Bomber • Gold Kicks",
+        badgeEmoji = "👑",
+        style = CharacterStyle.ROYAL_FLEX,
+        shirtColor = Color(0xFF2A1F0D),
+        shirtHighlight = Color(0xFFFFD700),
+        pantsColor = Color(0xFF17130C),
+        pantsStripe = Color(0xFFFFD700),
+        backpackColor = Color(0xFF5C430E),
+        backpackFlapColor = Color(0xFFFFE55C),
+        skinColor = Color(0xFFC6865E),
+        skinShadow = Color(0xFF99623F),
+        hairColor = Color(0xFF1A1410),
+        shoeColor = Color(0xFFFFC700),
+        shoeSoleColor = Color(0xFF64FFDA),
+        gloveColor = Color(0xFF2B200D),
+        accentGlow = Color(0xFFFFE047),
+        speedRating = 100,
+        auraBonus = 30
     )
 )
 
@@ -284,7 +367,8 @@ val HOVERBOARDS = listOf(
     HoverboardSpec("solar", "Solar Relic Board", "सोलर रेलिक बोर्ड", Color(0xFFFFB700), Color(0xFFFF5500), 0),
     HoverboardSpec("cyber", "Neon Cyber Deck", "नियॉन साइबर डेक", Color(0xFF00F0FF), Color(0xFFFF00AA), 1200),
     HoverboardSpec("magma", "Obsidian Drake", "ओब्सीडियन ड्रेक", Color(0xFF3B1A10), Color(0xFFFF3B00), 1800),
-    HoverboardSpec("frost", "Cryo Wing Glider", "क्रायो विंग ग्लाइडर", Color(0xFFDFF6FF), Color(0xFF38B6FF), 2200)
+    HoverboardSpec("frost", "Cryo Wing Glider", "क्रायो विंग ग्लाइडर", Color(0xFFDFF6FF), Color(0xFF38B6FF), 2200),
+    HoverboardSpec("vapor", "Vaporwave Pulse", "वेपरवेव पल्स डेक", Color(0xFFB57CFF), Color(0xFF64FFDA), 1500)
 )
 
 enum class EntityType {
@@ -295,7 +379,8 @@ enum class EntityType {
     HURDLE_LOW,
     BARRIER_HIGH,
     GATE_BOOST,
-    GATE_HAZARD
+    GATE_HAZARD,
+    DIMENSIONAL_PORTAL
 }
 
 enum class PowerupKind(val label: String, val emoji: String, val color: Color) {
@@ -313,7 +398,8 @@ data class WorldEntity(
     val type: EntityType,
     val powerupKind: PowerupKind? = null,
     var active: Boolean = true,
-    var rotationY: Float = 0f
+    var rotationY: Float = 0f,
+    var nearMissChecked: Boolean = false
 )
 
 data class SceneryRow(
@@ -336,4 +422,98 @@ data class FloatingPopup(
     val isPositive: Boolean,
     val isCoin: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
+)
+
+enum class FlashMissionType {
+    COINS_SPRINT,
+    NEAR_MISS_STREAK,
+    ACROBAT_COINS,
+    CLEAN_DASH_METERS
+}
+
+data class FlashMission(
+    val id: Int,
+    val type: FlashMissionType,
+    val title: String,
+    val hiTitle: String,
+    val target: Int,
+    var progress: Int = 0,
+    var timeRemainingSec: Float = 30f,
+    val maxTimeSec: Float = 30f,
+    val rewardCoins: Int = 350,
+    val rewardRubies: Int = 2
+)
+
+data class ConfettiParticle(
+    var xRatio: Float,
+    var yRatio: Float,
+    var vx: Float,
+    var vy: Float,
+    val color: Color,
+    var rotationDeg: Float,
+    val sizeDp: Float
+)
+
+data class RadioTransmission(
+    val id: Long,
+    val speaker: String,
+    val callSign: String,
+    val message: String,
+    val hiMessage: String,
+    val accentColor: Color,
+    val createdAtMs: Long = System.currentTimeMillis()
+)
+
+data class LoreComicPanel(
+    val panelNumber: Int,
+    val title: String,
+    val hiTitle: String,
+    val caption: String,
+    val dialogueQuote: String,
+    val primaryColor: Color,
+    val accentColor: Color,
+    val badgeEmoji: String
+)
+
+val CHRONO_LORE_PANELS = listOf(
+    LoreComicPanel(
+        panelNumber = 1,
+        title = "PANEL I: THE CHRONO CORE",
+        hiTitle = "१. क्रोनो कोर की खोज",
+        caption = "Deep inside the overgrown Sunlit Temple of the Ancient Ruins, Street Rebel Leo unseals the levitating Chrono Core from its inscribed stone pedestal.",
+        dialogueQuote = "\"Energy readings are off the charts! The artifact is supercharging our speed!\"",
+        primaryColor = Color(0xFF1E3F2B),
+        accentColor = Color(0xFF64FFDA),
+        badgeEmoji = "💎"
+    ),
+    LoreComicPanel(
+        panelNumber = 2,
+        title = "PANEL II: LEGENDS OF THE HORIZON",
+        hiTitle = "२. होराइजन के 3D दिग्गज",
+        caption = "Six elite 3D runners unite—Street Rebel Leo, Cyber Ninja Kai, Solar Valkyrie Aria, Blaze Striker Ignis, Kitsune Spirit Nova, and Royal Legend Kairo!",
+        dialogueQuote = "\"Pick your 3D Hero, lace up your neon kicks, and ignite the track!\"",
+        primaryColor = Color(0xFF1F2442),
+        accentColor = Color(0xFFFFD03B),
+        badgeEmoji = "👟"
+    ),
+    LoreComicPanel(
+        panelNumber = 3,
+        title = "PANEL III: 8x HYPER RUN OVERDRIVE",
+        hiTitle = "३. 8x हाइपर रन और नियर-मिस",
+        caption = "Chain split-second Near-Miss dodges and Flash Missions to charge your Flow Meter from 1x to 8x HYPER RUN overdrive with custom 3D trails!",
+        dialogueQuote = "\"Dodge at the last split-second to trigger slow-mo sparks and massive combos!\"",
+        primaryColor = Color(0xFF3A1228),
+        accentColor = Color(0xFFFF2E93),
+        badgeEmoji = "⚡"
+    ),
+    LoreComicPanel(
+        panelNumber = 4,
+        title = "PANEL IV: DIMENSIONAL RIFT PORTALS",
+        hiTitle = "४. आयामी पोर्टल और ४ दुनिया",
+        caption = "As the Chrono Core resonates, Dimensional Portals tear open across Ancient Ruins, Cyber City, Lava Cave, and Snowy Peak!",
+        dialogueQuote = "\"Chrono Core resonating... Portal opening ahead! Leap through the rift!\"",
+        primaryColor = Color(0xFF141E46),
+        accentColor = Color(0xFF00F0FF),
+        badgeEmoji = "🌀"
+    )
 )

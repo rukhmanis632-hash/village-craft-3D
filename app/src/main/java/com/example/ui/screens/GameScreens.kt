@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -120,7 +121,18 @@ fun MainMenuOverlay(
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🧰", fontSize = 18.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(text = "🧰", fontSize = 16.sp)
+                            Text(
+                                text = "🔥${viewModel.dailyStreakDays}d",
+                                color = Color(0xFFFFE266),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
                     }
                 }
             }
@@ -137,7 +149,65 @@ fun MainMenuOverlay(
             )
 
             // Unobstructed viewport window to admire the live 3D Runner & World
-            Spacer(modifier = Modifier.height(68.dp))
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // 2B. Subtle Main Menu "STORY / LORE: THE CHRONO CORE" Card
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .shadow(8.dp, RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(Color(0xE6182924), Color(0xE6281A3D))
+                        )
+                    )
+                    .border(2.dp, Color(0xFF64FFDA), RoundedCornerShape(14.dp))
+                    .clickable { viewModel.openModal(ModalType.STORY_LORE) }
+                    .testTag("open_story_lore_btn")
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x4400F0FF))
+                            .border(1.5.dp, Color(0xFF64FFDA), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "💎", fontSize = 20.sp)
+                    }
+                    Column {
+                        Text(
+                            text = "📜 STORY & 3D HEROES: ${viewModel.currentCharacter.name.uppercase()}",
+                            color = Color(0xFF64FFDA),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = "${viewModel.currentCharacter.badgeEmoji} ${viewModel.currentCharacter.signatureGear}",
+                            color = Color(0xFFEAEAEA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                Text(
+                    text = "VIEW ▶",
+                    color = Color(0xFFFFD43B),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // 3. Giant Green Beveled PLAY Button
             GreenBevelButton(
@@ -197,7 +267,7 @@ fun MainMenuOverlay(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 5. Bottom Icon Bar (Settings, Hoverboards, Shop)
+            // 5. Bottom Icon Bar (Settings, Story/Lore, Hoverboards, Shop)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -209,6 +279,13 @@ fun MainMenuOverlay(
                     hiSub = "सेटिंग्स",
                     testTag = "open_settings_btn",
                     onClick = { viewModel.openModal(ModalType.SETTINGS) }
+                )
+                BottomCircleIconAction(
+                    emoji = "📜",
+                    enSub = "STORY",
+                    hiSub = "कहानी",
+                    testTag = "open_story_circle_btn",
+                    onClick = { viewModel.openModal(ModalType.STORY_LORE) }
                 )
                 BottomCircleIconAction(
                     emoji = "🛹",
@@ -335,40 +412,61 @@ fun InGameHudOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        val effectiveMult = viewModel.multiplierLevel * viewModel.flowMultiplier
                         Text(
-                            text = "x${viewModel.multiplierLevel}",
-                            color = Color(0xFFFFCC29),
+                            text = "x$effectiveMult",
+                            color = if (viewModel.isHyperRun) Color(0xFFFF2E93) else Color(0xFFFFCC29),
                             fontSize = 21.sp,
                             fontWeight = FontWeight.Black,
                             style = TextStyle(
                                 shadow = Shadow(color = Color.Black, offset = Offset(0f, 2f), blurRadius = 2f)
                             )
                         )
-                        // Mini Rainbow Aura Bar
-                        Box(
-                            modifier = Modifier
-                                .width(92.dp)
-                                .height(11.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x99000000))
-                                .border(1.5.dp, Color.White, RoundedCornerShape(8.dp))
-                        ) {
+                        // Arcade Flow & Combo Multiplier Bar (1x -> 2x -> 4x -> HYPER RUN)
+                        Column {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth((viewModel.aura / 100f).coerceIn(0.05f, 1f))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color(0xFFFF3B5C),
-                                                Color(0xFFFFCC00),
-                                                Color(0xFF33FF66),
-                                                Color(0xFF00E5FF)
+                                    .width(108.dp)
+                                    .height(12.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0x99000000))
+                                    .border(
+                                        1.5.dp,
+                                        if (viewModel.isHyperRun) Color(0xFFFF2E93) else Color.White,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth((viewModel.flowMeter / 100f).coerceIn(0.06f, 1f))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0xFF00E5FF),
+                                                    Color(0xFF7B2CBF),
+                                                    Color(0xFFFF2E93),
+                                                    Color(0xFFFFCC00)
+                                                )
                                             )
                                         )
-                                    )
+                                )
+                            }
+                            Text(
+                                text = viewModel.flowTierLabel,
+                                color = if (viewModel.isHyperRun) Color(0xFFFF66B2) else Color(0xFF80F8FF),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black
                             )
                         }
+                    }
+                    if (viewModel.comboChain > 0 || viewModel.nearMissCount > 0) {
+                        Text(
+                            text = "⚡ ${viewModel.comboChain} COMBO • ${viewModel.nearMissCount} NEAR-MISS",
+                            color = Color(0xFFFFD54F),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
                 }
 
@@ -486,10 +584,185 @@ fun InGameHudOverlay(
                     }
                 }
             }
+
+            // 30-Second Flash Micro-Mission HUD Banner
+            val flashMission = viewModel.activeFlashMission
+            if (flashMission != null && !viewModel.isIntroCutsceneActive) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .widthIn(max = 330.dp)
+                        .fillMaxWidth(0.92f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xCC161126))
+                        .border(1.5.dp, Color(0xFF64FFDA), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .testTag("hud_flash_mission_card")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎯 ${flashMission.title}",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = "${flashMission.progress}/${flashMission.target} • ${flashMission.timeRemainingSec.toInt()}s",
+                            color = Color(0xFF64FFDA),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0x66000000))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth((flashMission.timeRemainingSec / flashMission.maxTimeSec).coerceIn(0.03f, 1f))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFFFF6EC7), Color(0xFF64FFDA))
+                                    )
+                                )
+                        )
+                    }
+                }
+            }
+
+            // In-Game Voice Lines / Radio Comms Transmission Banner
+            val radio = viewModel.activeRadioTransmission
+            if (radio != null && !viewModel.isIntroCutsceneActive) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .widthIn(max = 350.dp)
+                        .fillMaxWidth(0.95f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xE60B131E))
+                        .border(1.5.dp, radio.accentColor, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                        .testTag("hud_radio_comms_card")
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📻 ${radio.speaker}",
+                            color = radio.accentColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = radio.callSign,
+                            color = Color(0xFF99AABB),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = radio.message,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = radio.hiMessage,
+                        color = Color(0xFFFFD269),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // 1B. 3-Second Intro Cutscene Cinematic Letterbox & Tap-to-Skip Overlay (IntroCinematic)
+        if (viewModel.isIntroCutsceneActive) {
+            val elapsed = viewModel.introElapsedSec
+            val phaseHeadline = when {
+                elapsed < 0.95f -> "💎 PHASE 1: GRABBING THE CHRONO CORE"
+                elapsed < 2.0f -> "⚡ PHASE 2: ${viewModel.currentCharacter.name.uppercase()} CHARGED!"
+                else -> "🎥 PHASE 3: LOCKING 3RD-PERSON FOLLOW-CAM..."
+            }
+            val phaseSub = when {
+                elapsed < 0.95f -> "${viewModel.currentCharacter.name} lifts the glowing Chrono Core from the ancient stone pedestal..."
+                elapsed < 2.0f -> "Dimensional energy surges through ${viewModel.currentCharacter.signatureGear}!"
+                else -> "Speed & Flow systems online — Let's run!"
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .widthIn(max = 370.dp)
+                    .fillMaxWidth(0.94f)
+                    .shadow(14.dp, RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color(0xE6101B24), Color(0xE61D1128))
+                        )
+                    )
+                    .border(2.2.dp, Color(0xFF64FFDA), RoundedCornerShape(18.dp))
+                    .clickable { viewModel.skipIntroCutscene() }
+                    .padding(14.dp)
+                    .testTag("hud_intro_cutscene_banner"),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "🎬 INTRO CUTSCENE • ${"%.1f".format(viewModel.introCutsceneTimerSec)}s",
+                    color = Color(0xFFFFD43B),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = phaseHeadline,
+                    color = Color(0xFF64FFDA),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = phaseSub,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF2B193E))
+                        .border(1.5.dp, Color(0xFFFF6EC7), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 5.dp)
+                        .testTag("skip_intro_btn")
+                ) {
+                    Text(
+                        text = "⏭ TAP ANYWHERE TO SKIP TO RUN",
+                        color = Color(0xFFFF6EC7),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
         }
 
         // 2. Bilingual Swipe Prompts (SWIPE UP / ऊपर स्वाइप करें, SWIPE DOWN / नीचे स्वाइप करें)
-        if (viewModel.showSwipeHints && viewModel.distanceMeters < 180f) {
+        if (!viewModel.isIntroCutsceneActive && viewModel.showSwipeHints && viewModel.distanceMeters < 180f) {
             Column(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -598,14 +871,15 @@ fun InGameHudOverlay(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HudControlChip("◀", "btn_left") { viewModel.moveLane(-1) }
-                HudControlChip("▲ JUMP", "btn_jump") { viewModel.triggerJump() }
-                HudControlChip("▼ SLIDE", "btn_slide") { viewModel.triggerSlide() }
+                HudControlChip("▲", "btn_jump") { viewModel.triggerJump() }
+                HudControlChip("▼", "btn_slide") { viewModel.triggerSlide() }
                 HudControlChip("▶", "btn_right") { viewModel.moveLane(1) }
-                HudControlChip("⚡ BOOST", "btn_boost") { viewModel.triggerManualBoost() }
+                HudControlChip("⚡", "btn_boost") { viewModel.triggerManualBoost() }
+                HudControlChip("🌀 RIFT", "btn_portal") { viewModel.triggerDimensionalPortalNow() }
             }
 
             Box(
@@ -859,17 +1133,19 @@ fun GameOverOverlay(
     viewModel: GameViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.radialGradient(
-                    colors = listOf(Color(0x661C120F), Color(0xDD0A0706))
+                    colors = listOf(Color(0x661C1228), Color(0xE608060E))
                 )
             )
             .windowInsetsPadding(WindowInsets.statusBars)
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -878,19 +1154,20 @@ fun GameOverOverlay(
                 .widthIn(max = 420.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // 1. Header + Zero-Wait Instant Respawn Pill
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = if (viewModel.score > 15000) "NEW LEGEND!" else "DEFEATED!",
-                    color = Color(0xFFDCDCDC),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp
+                    text = if (viewModel.isNewPersonalBest) "🏆 NEW WORLD RECORD!" else "RUN COMPLETE",
+                    color = Color(0xFF64FFDA),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.8.sp
                 )
                 Text(
                     text = "GAME OVER",
-                    fontSize = 44.sp,
+                    fontSize = 38.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.5.sp,
                     modifier = Modifier.testTag("game_over_header"),
@@ -907,94 +1184,197 @@ fun GameOverOverlay(
                 )
             }
 
-            // Stone Run Summary Plaque
+            // 2. "Close-Call" Competitive Hook Banner
+            if (viewModel.closeCallHeadline.isNotBlank()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = if (viewModel.isNewPersonalBest) {
+                                    listOf(Color(0xFF143D34), Color(0xFF1E2246))
+                                } else {
+                                    listOf(Color(0xFF42122B), Color(0xFF2B143D))
+                                }
+                            )
+                        )
+                        .border(
+                            2.dp,
+                            if (viewModel.isNewPersonalBest) Color(0xFF64FFDA) else Color(0xFFFF6EC7),
+                            RoundedCornerShape(14.dp)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .testTag("close_call_banner"),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = viewModel.closeCallHeadline,
+                        color = if (viewModel.isNewPersonalBest) Color(0xFF64FFDA) else Color(0xFFFF6EC7),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = viewModel.closeCallSubtext,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            // 3. Gen-Z Social Story Viral Scorecard
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(12.dp, RoundedCornerShape(16.dp))
-                    .clip(RoundedCornerShape(16.dp))
+                    .shadow(14.dp, RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color(0xFF635A50), Color(0xFF453E37))
+                            colors = listOf(
+                                Color(0xFF261C3D),
+                                Color(0xFF191528),
+                                Color(0xFF120F1D)
+                            )
                         )
                     )
-                    .border(3.5.dp, Color(0xFF8C8275), RoundedCornerShape(16.dp))
-                    .padding(18.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .border(
+                        2.8.dp,
+                        Brush.horizontalGradient(
+                            colors = listOf(Color(0xFF64FFDA), Color(0xFFB57CFF), Color(0xFFFF6EC7))
+                        ),
+                        RoundedCornerShape(20.dp)
+                    )
+                    .padding(16.dp)
+                    .testTag("viral_story_scorecard"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "RUN SUMMARY",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    text = "रन का विवरण",
-                    color = Color(0xFFFFD269),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = "%,dm".format(viewModel.distanceMeters.toInt()),
-                    color = Color.White,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Black,
-                    style = TextStyle(
-                        shadow = Shadow(color = Color.Black, offset = Offset(0f, 3f), blurRadius = 3f)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
+                // Top Story Header: Player Handle & Rank Tier Badge
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${viewModel.runCoins} Coins",
-                        color = Color(0xFFFFE266),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    CoinBadge(24.dp)
+                    Column {
+                        Text(
+                            text = "@${viewModel.userDisplayName.replace(" ", "").lowercase()}",
+                            color = Color(0xFF64FFDA),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = "${viewModel.currentCharacter.name} • ${viewModel.currentWorld.shortName}",
+                            color = Color(0xFFCCCCCC),
+                            fontSize = 11.sp
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color(0xFFB57CFF), Color(0xFFFF6EC7))
+                                )
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = viewModel.runRankTier,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
                 }
 
+                // Giant Score & Distance Display
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${viewModel.runRubies} Rubies",
-                        color = Color(0xFFFF8FA3),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    RubyBadge(22.dp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "FINAL SCORE",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "%,d".format(viewModel.score),
+                            color = Color(0xFFFFE266),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "DISTANCE",
+                            color = Color(0xFFAAAAAA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "%,dm".format(viewModel.distanceMeters.toInt()),
+                            color = Color.White,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "%,d".format(viewModel.score),
-                    color = Color(0xFFFFD43B),
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Black,
-                    style = TextStyle(
-                        shadow = Shadow(color = Color.Black, offset = Offset(0f, 3f), blurRadius = 3f)
+                // 2x2 Viral Flex Badges (Max Combo, Near-Miss Dodges, Flash Missions, Loot)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ViralStatChip(
+                        label = "MAX COMBO",
+                        value = "${viewModel.maxComboChain}x 🔥",
+                        accent = Color(0xFFFF6EC7),
+                        modifier = Modifier.weight(1f)
                     )
+                    ViralStatChip(
+                        label = "NEAR-MISSES",
+                        value = "${viewModel.nearMissCount} ⚡",
+                        accent = Color(0xFF64FFDA),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ViralStatChip(
+                        label = "FLASH CLEARS",
+                        value = "${viewModel.flashMissionsCompleted} 🎯",
+                        accent = Color(0xFFB57CFF),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ViralStatChip(
+                        label = "LOOT HAUL",
+                        value = "${viewModel.runCoins}★ ${viewModel.runRubies}♦",
+                        accent = Color(0xFFFFE266),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Share Story Card Action
+                StoneGoldBilingualButton(
+                    enLabel = "📸 SHARE VIRAL STORY CARD",
+                    hiLabel = "स्कोरकार्ड शेयर करें",
+                    testTag = "share_story_btn",
+                    isHighlighted = true,
+                    onClick = { viewModel.shareViralScorecard(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 )
             }
 
-            // Item Unlocked Card (Speed Boost Boot)
+            // 4. Item Unlocked / Free Headstart Card
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1005,54 +1385,54 @@ fun GameOverOverlay(
                             colors = listOf(Color(0xFF3C352D), Color(0xFF24201B))
                         )
                     )
-                    .border(2.8.dp, Color(0xFFE0A32E), RoundedCornerShape(14.dp))
+                    .border(2.5.dp, Color(0xFFE0A32E), RoundedCornerShape(14.dp))
                     .clickable { viewModel.equipFreeStartBoost() }
                     .testTag("equip_unlock_card")
-                    .padding(12.dp),
+                    .padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(Color(0x59FFD250), Color(0x66000000))
                             )
                         )
-                        .border(2.dp, Color(0xFFFFCC4D), RoundedCornerShape(12.dp)),
+                        .border(2.dp, Color(0xFFFFCC4D), RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "🥾", fontSize = 28.sp)
+                    Text(text = "🥾", fontSize = 24.sp)
                 }
                 Column {
                     Text(
-                        text = "ITEM UNLOCKED!",
+                        text = "HEADSTART BOOST UNLOCKED!",
                         color = Color(0xFFFFD43B),
-                        fontSize = 15.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Black
                     )
                     Text(
                         text = if (viewModel.freeStartBoost) {
                             "Speed Boost EQUIPPED for next run! ⚡"
                         } else {
-                            "Speed Boost upgrade unlocked (Tap to equip)"
+                            "Tap to equip free Speed Boost for next run"
                         },
                         color = Color(0xFFEAEAEA),
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
             }
 
-            // Run Again & Main Menu Buttons
+            // 5. Zero-Wait Instant Respawn & Main Menu Buttons
             GreenBevelButton(
-                text = "RUN AGAIN",
+                text = "⚡ INSTANT RETRY",
                 iconText = "↻",
                 testTag = "restart_btn",
                 onClick = { viewModel.startGame() },
-                modifier = Modifier.fillMaxWidth(0.86f)
+                modifier = Modifier.fillMaxWidth(0.92f)
             )
 
             StoneGoldBilingualButton(
@@ -1065,3 +1445,34 @@ fun GameOverOverlay(
         }
     }
 }
+
+@Composable
+private fun ViralStatChip(
+    label: String,
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0x66000000))
+            .border(1.dp, accent.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
+            .padding(vertical = 6.dp, horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            color = Color(0xFFBBBBBB),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = value,
+            color = accent,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Black
+        )
+    }
+}
+

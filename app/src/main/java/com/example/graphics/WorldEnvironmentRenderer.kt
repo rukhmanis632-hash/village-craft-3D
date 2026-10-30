@@ -1037,6 +1037,54 @@ object WorldEnvironmentRenderer {
                     outlineColor = Color(0xFFFFD43B)
                 )
             }
+
+            EntityType.DIMENSIONAL_PORTAL -> {
+                // Full-road-width or Center Dimensional Rift Vortex Portal
+                val portalY = 2.35f + sin(timeSec * 3.5f) * 0.14f
+                drawGlow3D(cam, entity.x, portalY, entity.z, 3.8f, Color(0xFFB57CFF))
+                drawGlow3D(cam, entity.x, portalY, entity.z, 2.4f, Color(0xFF00F0FF))
+                // Left & Right Rift Pillars
+                for (side in listOf(-2.25f, 2.25f)) {
+                    drawBox3D(
+                        cam = cam,
+                        cx = entity.x + side,
+                        bottomY = 0f,
+                        cz = entity.z,
+                        width = 0.48f,
+                        height = 4.6f,
+                        depthZ = 0.48f,
+                        baseColor = Color(0xFF281B4D),
+                        fogColor = world.fogColor,
+                        outlineColor = Color(0xFF00F0FF)
+                    )
+                }
+                val p = cam.project(entity.x, portalY, entity.z)
+                if (p.visible) {
+                    val rx = max(12f, 2.15f * p.scale)
+                    val ry = max(16f, 2.55f * p.scale)
+                    drawOval(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFFFFFFF),
+                                Color(0xFF00F0FF),
+                                Color(0xFFB57CFF),
+                                Color(0x33280B45),
+                                Color.Transparent
+                            ),
+                            center = Offset(p.x, p.y),
+                            radius = max(rx, ry)
+                        ),
+                        topLeft = Offset(p.x - rx, p.y - ry),
+                        size = Size(rx * 2f, ry * 2f)
+                    )
+                    drawOval(
+                        color = Color(0xFF64FFDA),
+                        topLeft = Offset(p.x - rx * 0.85f, p.y - ry * 0.85f),
+                        size = Size(rx * 1.7f, ry * 1.7f),
+                        style = Stroke(width = max(2.5f, p.scale * 0.14f))
+                    )
+                }
+            }
         }
     }
 

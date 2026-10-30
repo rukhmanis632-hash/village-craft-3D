@@ -234,6 +234,162 @@ class SoundEngine {
         }
     }
 
+    fun playNearMissSpark() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.8f
+        scope.launch {
+            val dur = 0.28f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            var lp = 0f
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val norm = i.toFloat() / len
+                // Sub-drop time-dilation thump + electric spark sweep
+                val subDrop = sin(2f * PI.toFloat() * (145f * exp(-t * 14f) + 55f) * t) * exp(-t * 10f) * 0.65f
+                val sparkFreq = 920f + 1680f * norm
+                val spark = sin(2f * PI.toFloat() * sparkFreq * t) * exp(-t * 16f) * 0.45f
+                lp += 0.45f * ((Random.nextFloat() * 2f - 1f) - lp)
+                val crackle = lp * exp(-t * 22f) * 0.35f
+                val v = (subDrop + spark + crackle) * vol
+                samples[i] = (v.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playHyperRunDrop() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.85f
+        scope.launch {
+            val dur = 0.48f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            val chord = floatArrayOf(523.25f, 659.25f, 783.99f, 1046.50f)
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val norm = i.toFloat() / len
+                val env = sin(PI.toFloat() * min(1f, norm * 1.2f)) * exp(-t * 3.8f)
+                var synth = 0f
+                for (f in chord) {
+                    synth += sin(2f * PI.toFloat() * (f * (0.85f + 0.15f * min(1f, norm * 3f))) * t)
+                }
+                val bass = sin(2f * PI.toFloat() * 130.81f * t) * exp(-t * 5f) * 0.55f
+                val v = (synth * 0.24f * env + bass) * vol
+                samples[i] = (v.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playFlashMissionComplete() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.85f
+        scope.launch {
+            val dur = 0.42f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            val notes = floatArrayOf(587.33f, 783.99f, 987.77f, 1174.66f)
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val noteIdx = ((i * notes.size) / len).coerceIn(0, notes.lastIndex)
+                val freq = notes[noteIdx]
+                val localT = (t * notes.size) % (dur / notes.size)
+                val env = exp(-localT * 18f)
+                val tone = (sin(2f * PI.toFloat() * freq * t) + 0.45f * sin(4f * PI.toFloat() * freq * t)) * env * 0.65f
+                samples[i] = ((tone * vol).coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playTitanRoar() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.92f
+        scope.launch {
+            val dur = 0.68f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            var lp = 0f
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val norm = i.toFloat() / len
+                val env = sin(PI.toFloat() * min(1f, norm * 1.15f)) * exp(-t * 2.1f)
+                // Guttural monster sub-growl + formants + roar distortion
+                val growlFreq = 92f - 34f * norm + sin(2f * PI.toFloat() * 19f * t) * 11f
+                val sub = sin(2f * PI.toFloat() * growlFreq * t) * 0.58f
+                val formant = sin(2f * PI.toFloat() * (growlFreq * 2.7f) * t) * 0.34f
+                val n = Random.nextFloat() * 2f - 1f
+                lp += 0.32f * (n - lp)
+                val breath = lp * 0.55f
+                val v = (sub + formant + breath) * env * vol
+                samples[i] = (v.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playPortalWarp() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.85f
+        scope.launch {
+            val dur = 0.55f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val norm = i.toFloat() / len
+                val env = sin(PI.toFloat() * norm)
+                val sweep1 = 220f + 660f * norm * norm
+                val sweep2 = 330f + 990f * norm
+                val shimmer = sin(2f * PI.toFloat() * sweep1 * t) * 0.45f +
+                    sin(2f * PI.toFloat() * sweep2 * t + sin(t * 45f) * 2.5f) * 0.40f
+                val v = shimmer * env * vol
+                samples[i] = (v.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playRadioCommsChime() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.65f
+        scope.launch {
+            val dur = 0.18f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                val freq = if (t < 0.08f) 1320f else 1760f
+                val env = exp(-(t % 0.09f) * 26f)
+                val staticNoise = (Random.nextFloat() * 2f - 1f) * 0.08f
+                val v = (sin(2f * PI.toFloat() * freq * t) * 0.55f * env + staticNoise) * vol
+                samples[i] = (v.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
+    fun playRelicGrab() {
+        if (!soundEnabled || sfxVolume <= 0.01f) return
+        val vol = sfxVolume * 0.85f
+        scope.launch {
+            val dur = 0.46f
+            val len = (sampleRate * dur).toInt()
+            val samples = ShortArray(len)
+            val freqs = floatArrayOf(523.25f, 783.99f, 1046.5f, 1567.98f)
+            for (i in 0 until len) {
+                val t = i.toFloat() / sampleRate
+                var sig = 0f
+                for (f in freqs) {
+                    sig += sin(2f * PI.toFloat() * f * t) * exp(-t * 6.5f) * 0.25f
+                }
+                samples[i] = ((sig * vol).coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+            }
+            playPcmBuffer(samples)
+        }
+    }
+
     fun startWorldBgm(worldId: Int) {
         currentWorldId = worldId
         if (!soundEnabled) {

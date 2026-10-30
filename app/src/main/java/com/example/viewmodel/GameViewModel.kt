@@ -1,6 +1,7 @@
 package com.example.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -9,6 +10,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.audio.SoundEngine
@@ -16,13 +18,17 @@ import com.example.data.PlayerProfileDoc
 import com.example.data.RunRecordDoc
 import com.example.data.repository.HorizonDashRepository
 import com.example.model.AmbientParticle
+import com.example.model.ConfettiParticle
 import com.example.model.EntityType
+import com.example.model.FlashMission
+import com.example.model.FlashMissionType
 import com.example.model.FloatingPopup
 import com.example.model.HOVERBOARDS
 import com.example.model.HoverboardSpec
 import com.example.model.ModalType
 import com.example.model.PowerupKind
 import com.example.model.RUNNER_CHARACTERS
+import com.example.model.RadioTransmission
 import com.example.model.RunnerCharacter
 import com.example.model.SceneryRow
 import com.example.model.ScreenState
@@ -32,7 +38,7 @@ import com.example.model.WorldTheme
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -53,7 +59,8 @@ sealed interface UiState<out T> {
 class GameViewModel(
     private val repository: HorizonDashRepository? = null,
     val currentUserId: String? = null,
-    val userDisplayName: String = "Explorer Leo"
+    val userDisplayName: String = "Explorer Leo",
+    val onRequestSignIn: () -> Unit = {}
 ) : ViewModel() {
 
     val soundEngine = SoundEngine()
@@ -172,6 +179,101 @@ class GameViewModel(
     var boostMax by mutableFloatStateOf(320f)
         private set
 
+    // --- GEN-Z DOPAMINE, FLOW MULTIPLIER, NEAR-MISS & FLASH MISSIONS ---
+    var dailyStreakDays by mutableIntStateOf(5)
+        private set
+    var flowMeter by mutableFloatStateOf(0f) // 0f..100f
+        private set
+    var isHyperRun by mutableStateOf(false)
+        private set
+    var comboChain by mutableIntStateOf(0)
+        private set
+    var maxComboChain by mutableIntStateOf(0)
+        private set
+    var nearMissCount by mutableIntStateOf(0)
+        private set
+    var nearMissSlowMoTimer by mutableFloatStateOf(0f)
+        private set
+    var nearMissFlashTimer by mutableFloatStateOf(0f)
+        private set
+    private var lastLaneSwitchTimeSec = -10f
+    private var lastPreviousLane = 0
+
+    // Camera Juice (Dutch Roll, FOV Warp, Screen Shake)
+    var cameraRollRad by mutableFloatStateOf(0f)
+        private set
+    var dynamicFovMultiplier by mutableFloatStateOf(1.0f)
+        private set
+    var screenShakeIntensity by mutableFloatStateOf(0f)
+        private set
+    var screenShakeX by mutableFloatStateOf(0f)
+        private set
+    var screenShakeY by mutableFloatStateOf(0f)
+        private set
+
+    // 30-Second Flash Micro-Missions & Confetti
+    var activeFlashMission by mutableStateOf<FlashMission?>(null)
+        private set
+    var flashMissionsCompleted by mutableIntStateOf(0)
+        private set
+    private var flashMissionCursor = 0
+    private var cleanDashAccumulator = 0f
+    val confettiParticles = mutableStateListOf<ConfettiParticle>()
+
+    // Close-Call Defeat & Social Viral Scorecard State
+    var closeCallHeadline by mutableStateOf("")
+        private set
+    var closeCallSubtext by mutableStateOf("")
+        private set
+    var isNewPersonalBest by mutableStateOf(false)
+        private set
+
+    // --- 1. INTRO CUTSCENE (IntroCinematic: 3.0s Sequence + Tap-to-Skip) ---
+    var introCutsceneTimerSec by mutableFloatStateOf(0f) // 3.0f -> 0.0f
+        private set
+    var introSurgePlayed by mutableStateOf(false)
+        private set
+
+    val isIntroCutsceneActive: Boolean
+        get() = screenState == ScreenState.PLAYING && introCutsceneTimerSec > 0f
+
+    val introElapsedSec: Float
+        get() = (3.0f - introCutsceneTimerSec).coerceIn(0f, 3.0f)
+
+    // --- 2. DIMENSIONAL PORTAL WARP FLASH ---
+    var portalMorphFlashTimer by mutableFloatStateOf(0f)
+        private set
+
+    // --- 3. IN-GAME VOICE LINES / RADIO CHIMES & MILESTONES ---
+    var activeRadioTransmission by mutableStateOf<RadioTransmission?>(null)
+        private set
+    private var nextRadioMilestoneMeters = 100
+    private var nextPortalSpawnMeters = 350
+
+    val flowMultiplier: Int
+        get() = when {
+            isHyperRun || flowMeter >= 90f -> 8
+            flowMeter >= 60f -> 4
+            flowMeter >= 30f -> 2
+            else -> 1
+        }
+
+    val flowTierLabel: String
+        get() = when {
+            isHyperRun || flowMeter >= 90f -> "🔥 8x HYPER RUN"
+            flowMeter >= 60f -> "⚡ 4x OVERDRIVE"
+            flowMeter >= 30f -> "✨ 2x VIBE FLOW"
+            else -> "1x FLOW"
+        }
+
+    val runRankTier: String
+        get() = when {
+            score >= 95000 || nearMissCount >= 6 -> "SS+ HYPER GOD"
+            score >= 55000 || nearMissCount >= 4 -> "S-TIER LEGEND"
+            score >= 25000 || nearMissCount >= 2 -> "A-TIER FLOW MASTER"
+            else -> "B-TIER STREET RUNNER"
+        }
+
     // 3D World Scene Lists
     val entities = mutableStateListOf<WorldEntity>()
     val sceneryRows = mutableStateListOf<SceneryRow>()
@@ -187,7 +289,7 @@ class GameViewModel(
         (if (repository != null && currentUserId != null) {
             repository.observeUserRunRecords(currentUserId)
         } else {
-            emptyFlow()
+            flowOf(emptyList())
         })
             .map<List<RunRecordDoc>, UiState<List<RunRecordDoc>>> { list ->
                 val sorted = list.sortedByDescending { it.score }
@@ -447,10 +549,112 @@ class GameViewModel(
 
     fun claimDailyChest() {
         soundEngine.playPowerupSurge()
-        coins += 1000
+        dailyStreakDays += 1
+        coins += 1000 + dailyStreakDays * 100
         rubies += 5
+        spawnConfettiBurst()
         syncProfileToCloud()
-        showToast("🧰 Daily Chest: +1,000 Coins & +5 Rubies!")
+        showToast("🔥 ${dailyStreakDays}-Day Streak Chest: +${1000 + dailyStreakDays * 100} Coins & +5 Rubies!")
+    }
+
+    fun spawnConfettiBurst() {
+        val palette = listOf(
+            Color(0xFF64FFDA),
+            Color(0xFFFF6EC7),
+            Color(0xFFFFE266),
+            Color(0xFFB57CFF),
+            Color(0xFF00F0FF),
+            Color(0xFF56E364)
+        )
+        confettiParticles.clear()
+        for (i in 0 until 42) {
+            confettiParticles.add(
+                ConfettiParticle(
+                    xRatio = 0.5f + (Random.nextFloat() - 0.5f) * 0.28f,
+                    yRatio = 0.32f + (Random.nextFloat() - 0.5f) * 0.14f,
+                    vx = (Random.nextFloat() - 0.5f) * 0.022f,
+                    vy = -0.016f - Random.nextFloat() * 0.018f,
+                    color = palette[i % palette.size],
+                    rotationDeg = Random.nextFloat() * 360f,
+                    sizeDp = 6f + Random.nextFloat() * 6f
+                )
+            )
+        }
+    }
+
+    private fun spawnNextFlashMission() {
+        val idx = flashMissionCursor % 4
+        flashMissionCursor++
+        activeFlashMission = when (idx) {
+            0 -> FlashMission(
+                id = flashMissionCursor,
+                type = FlashMissionType.COINS_SPRINT,
+                title = "FLASH: Collect 12 Coins in 30s!",
+                hiTitle = "30 सेकंड में 12 सिक्के चुनें!",
+                target = 12,
+                rewardCoins = 400,
+                rewardRubies = 2
+            )
+            1 -> FlashMission(
+                id = flashMissionCursor,
+                type = FlashMissionType.NEAR_MISS_STREAK,
+                title = "FLASH: 2 Near-Miss Dodges in 30s!",
+                hiTitle = "30 सेकंड में 2 करीबी बचाव करें!",
+                target = 2,
+                rewardCoins = 500,
+                rewardRubies = 3
+            )
+            2 -> FlashMission(
+                id = flashMissionCursor,
+                type = FlashMissionType.ACROBAT_COINS,
+                title = "FLASH: 6 Coins Jumping/Sliding!",
+                hiTitle = "कूदते/फिसलते हुए 6 सिक्के लें!",
+                target = 6,
+                rewardCoins = 450,
+                rewardRubies = 2
+            )
+            else -> FlashMission(
+                id = flashMissionCursor,
+                type = FlashMissionType.CLEAN_DASH_METERS,
+                title = "FLASH: Clean Dash 200m in 30s!",
+                hiTitle = "30 सेकंड में 200m बेदाग दौड़ें!",
+                target = 200,
+                rewardCoins = 450,
+                rewardRubies = 2
+            )
+        }
+        cleanDashAccumulator = 0f
+    }
+
+    private fun advanceFlashMission(type: FlashMissionType, delta: Int = 1) {
+        val mission = activeFlashMission ?: return
+        if (mission.type != type) return
+        val newProg = (mission.progress + delta).coerceAtMost(mission.target)
+        activeFlashMission = mission.copy(progress = newProg)
+        if (newProg >= mission.target) {
+            flashMissionsCompleted += 1
+            coins += mission.rewardCoins
+            rubies += mission.rewardRubies
+            runCoins += mission.rewardCoins / 10
+            runRubies += mission.rewardRubies
+            score += 1200 * flowMultiplier
+            gainFlow(32f)
+            spawnConfettiBurst()
+            soundEngine.playFlashMissionComplete()
+            addPopup("🎉 FLASH CLEAR! +${mission.rewardCoins}★ +${mission.rewardRubies}♦", isPositive = true, isCoin = true)
+            spawnNextFlashMission()
+        }
+    }
+
+    private fun gainFlow(amount: Float) {
+        val wasHyper = isHyperRun
+        flowMeter = (flowMeter + amount).coerceIn(0f, 100f)
+        if (flowMeter >= 90f && !wasHyper) {
+            isHyperRun = true
+            screenShakeIntensity = max(screenShakeIntensity, 7.5f)
+            soundEngine.playHyperRunDrop()
+            addPopup("🔥 8x HYPER RUN UNLEASHED!", isPositive = true)
+        }
     }
 
     fun equipFreeStartBoost() {
@@ -537,7 +741,7 @@ class GameViewModel(
 
     // --- START & END RUN ---
     fun startGame() {
-        soundEngine.playUiClick()
+        soundEngine.playRelicGrab()
         soundEngine.startWorldBgm(selectedWorldIndex)
         activeModal = ModalType.NONE
         screenState = ScreenState.PLAYING
@@ -558,6 +762,37 @@ class GameViewModel(
         slideTimer = 0f
         runCycle = 0f
 
+        flowMeter = 18f
+        isHyperRun = false
+        comboChain = 0
+        maxComboChain = 0
+        nearMissCount = 0
+        nearMissSlowMoTimer = 0f
+        nearMissFlashTimer = 0f
+        flashMissionsCompleted = 0
+        cameraRollRad = 0f
+        dynamicFovMultiplier = 1.0f
+        screenShakeIntensity = 4.5f
+        screenShakeX = 0f
+        screenShakeY = 0f
+        confettiParticles.clear()
+        spawnNextFlashMission()
+
+        // Initialize 3-Second Intro Cutscene & Portal Milestones
+        introCutsceneTimerSec = 3.0f
+        introSurgePlayed = false
+        portalMorphFlashTimer = 0f
+        nextRadioMilestoneMeters = 100
+        nextPortalSpawnMeters = 300
+
+        broadcastRadioTransmission(
+            speaker = "ORACLE-7 COMMS",
+            callSign = "CHRONO-LINK // 94.2 MHz",
+            message = "Chrono Core acquired! ${currentCharacter.name}'s ${currentCharacter.signatureGear} is supercharged for hyper-speed!",
+            hiMessage = "क्रोनो कोर मिल गया! ${currentCharacter.hiName} पूरी रफ़्तार से दौड़ने के लिए तैयार है!",
+            accentColor = Color(0xFF64FFDA)
+        )
+
         magnetMax = 450f + magnetLevel * 85f
         magnetTimer = magnetMax
         hasShield = false
@@ -572,10 +807,86 @@ class GameViewModel(
 
         entities.clear()
         floatingPopups.clear()
-        spawnWave(-38f)
-        spawnWave(-72f)
-        spawnWave(-106f)
+        spawnWave(-44f)
+        spawnWave(-78f)
+        spawnWave(-112f)
         spawnAccumulator = 0f
+    }
+
+    fun skipIntroCutscene() {
+        if (!isIntroCutsceneActive) return
+        soundEngine.playSwipeWhoosh()
+        introCutsceneTimerSec = 0f
+        introSurgePlayed = true
+        cameraRollRad = 0f
+        dynamicFovMultiplier = 1.0f
+        addPopup("⏭ INTRO SKIPPED — RUN!", isPositive = true)
+    }
+
+    fun broadcastRadioTransmission(
+        speaker: String,
+        callSign: String,
+        message: String,
+        hiMessage: String,
+        accentColor: Color = Color(0xFF00F0FF)
+    ) {
+        soundEngine.playRadioCommsChime()
+        activeRadioTransmission = RadioTransmission(
+            id = System.nanoTime(),
+            speaker = speaker,
+            callSign = callSign,
+            message = message,
+            hiMessage = hiMessage,
+            accentColor = accentColor
+        )
+    }
+
+    fun triggerDimensionalPortalNow() {
+        if (screenState != ScreenState.PLAYING) return
+        if (introCutsceneTimerSec > 0f) {
+            skipIntroCutscene()
+        }
+        // Spawn a Dimensional Rift Portal directly ahead in the player's current lane
+        entities.add(
+            WorldEntity(
+                id = nextEntityId++,
+                lane = targetLane,
+                x = targetLane * laneWidth,
+                y = 0f,
+                z = -24f,
+                type = EntityType.DIMENSIONAL_PORTAL
+            )
+        )
+        broadcastRadioTransmission(
+            speaker = "ORACLE-7 COMMS",
+            callSign = "RIFT TELEMETRY",
+            message = "Chrono Core resonating... Dimensional Portal opening right ahead!",
+            hiMessage = "क्रोनो कोर गूंज रहा है... सामने आयामी पोर्टल खुल रहा है!",
+            accentColor = Color(0xFFB57CFF)
+        )
+    }
+
+    private fun enterDimensionalPortal() {
+        val nextWorld = (selectedWorldIndex + 1) % WORLD_THEMES.size
+        selectedWorldIndex = nextWorld
+        soundEngine.playPortalWarp()
+        soundEngine.startWorldBgm(selectedWorldIndex)
+        rebuildSceneryAndParticles()
+        portalMorphFlashTimer = 28f
+        screenShakeIntensity = max(screenShakeIntensity, 10.5f)
+        val bonus = 1500 * flowMultiplier
+        score += bonus
+        gainFlow(30f)
+        spawnConfettiBurst()
+        addPopup("🌀 RIFT WARP: ${currentWorld.shortName}! +$bonus", isPositive = true)
+        broadcastRadioTransmission(
+            speaker = "ORACLE-7 COMMS",
+            callSign = "DIMENSIONAL SHIFT // WORLD ${selectedWorldIndex + 1}",
+            message = "Rift crossed into ${currentWorld.shortName}! ${currentCharacter.name} gains +$bonus Rift Bonus!",
+            hiMessage = "पोर्टल पार! अब आप ${currentWorld.hiName} में दौड़ रहे हैं! +$bonus बोनस!",
+            accentColor = currentCharacter.accentGlow
+        )
+        syncProfileToCloud()
     }
 
     fun togglePause() {
@@ -587,38 +898,59 @@ class GameViewModel(
 
     fun moveLane(delta: Int) {
         if (screenState != ScreenState.PLAYING || isPaused) return
+        if (isIntroCutsceneActive) {
+            skipIntroCutscene()
+        }
         val prev = targetLane
         targetLane = (targetLane + delta).coerceIn(-1, 1)
         if (targetLane != prev) {
+            lastPreviousLane = prev
+            lastLaneSwitchTimeSec = animTimeSec
+            // Juicy Dutch-angle camera roll & micro haptic shake on fast lane swipe
+            cameraRollRad = (if (delta > 0) -0.085f else 0.085f)
+            screenShakeIntensity = max(screenShakeIntensity, 2.8f)
             soundEngine.playSwipeWhoosh()
         }
     }
 
     fun triggerJump() {
         if (screenState != ScreenState.PLAYING || isPaused) return
+        if (isIntroCutsceneActive) {
+            skipIntroCutscene()
+        }
         if (!isJumping) {
             isSliding = false
             slideTimer = 0f
             verticalVelocity = jumpPower
             isJumping = true
+            screenShakeIntensity = max(screenShakeIntensity, 3.8f)
             soundEngine.playJumpWhoosh()
         }
     }
 
     fun triggerSlide() {
         if (screenState != ScreenState.PLAYING || isPaused) return
+        if (isIntroCutsceneActive) {
+            skipIntroCutscene()
+        }
         if (isJumping) {
             verticalVelocity = -0.36f
         }
         isSliding = true
         slideTimer = 38f
+        screenShakeIntensity = max(screenShakeIntensity, 4.2f)
         soundEngine.playSlideScrape()
     }
 
     fun triggerManualBoost() {
         if (screenState != ScreenState.PLAYING || isPaused) return
+        if (isIntroCutsceneActive) {
+            skipIntroCutscene()
+        }
         boostMax = 260f + boostLevel * 70f
         boostTimer = boostMax
+        gainFlow(25f)
+        screenShakeIntensity = max(screenShakeIntensity, 6.5f)
         soundEngine.playPowerupSurge()
         addPopup("⚡ SPEED BOOST!", isPositive = true)
     }
@@ -640,6 +972,23 @@ class GameViewModel(
     private fun spawnWave(zPos: Float) {
         val lanes = mutableListOf(-1, 0, 1).apply { shuffle() }
         val roll = Random.nextFloat()
+
+        // Check if it's time to spawn a Dimensional Rift Portal
+        if (distanceMeters >= nextPortalSpawnMeters) {
+            nextPortalSpawnMeters += 350
+            entities.add(
+                WorldEntity(
+                    id = nextEntityId++,
+                    lane = 0,
+                    x = 0f,
+                    y = 0f,
+                    z = zPos,
+                    type = EntityType.DIMENSIONAL_PORTAL
+                )
+            )
+            nextSpawnGap = 32f
+            return
+        }
 
         if (roll < 0.16f) {
             entities.add(
@@ -747,14 +1096,65 @@ class GameViewModel(
     }
 
     fun stepFrame(dtNormalized: Float) {
-        val dt = dtNormalized.coerceIn(0.1f, 2.4f)
-        animTimeSec += dt * 0.01667f
+        val rawDt = dtNormalized.coerceIn(0.1f, 2.4f)
+        animTimeSec += rawDt * 0.01667f
+
+        // Update 2D Confetti Particles
+        for (i in confettiParticles.size - 1 downTo 0) {
+            val c = confettiParticles[i]
+            c.xRatio += c.vx * rawDt
+            c.yRatio += c.vy * rawDt
+            c.vy += 0.00095f * rawDt
+            c.rotationDeg = (c.rotationDeg + 9f * rawDt) % 360f
+            if (c.yRatio > 1.15f) {
+                confettiParticles.removeAt(i)
+            }
+        }
+
+        // Decay screen shake & spring camera roll back to 0
+        if (screenShakeIntensity > 0.05f) {
+            screenShakeX = (Random.nextFloat() * 2f - 1f) * screenShakeIntensity
+            screenShakeY = (Random.nextFloat() * 2f - 1f) * screenShakeIntensity
+            screenShakeIntensity *= 0.82f
+        } else {
+            screenShakeIntensity = 0f
+            screenShakeX = 0f
+            screenShakeY = 0f
+        }
+        cameraRollRad *= 0.84f
+        if (portalMorphFlashTimer > 0f) {
+            portalMorphFlashTimer = max(0f, portalMorphFlashTimer - rawDt)
+        }
 
         val now = System.currentTimeMillis()
         if (toastMessage != null && now - toastTimestamp > 2400L) {
             toastMessage = null
         }
-        floatingPopups.removeAll { now - it.createdAt > 850L }
+        if (activeRadioTransmission != null && now - (activeRadioTransmission?.createdAtMs ?: 0L) > 5200L) {
+            activeRadioTransmission = null
+        }
+        floatingPopups.removeAll { now - it.createdAt > 900L }
+
+        // Time-dilation slow-mo during split-second Near-Miss spark or Stumble Zoom
+        val timeScale = if (nearMissSlowMoTimer > 0f) {
+            nearMissSlowMoTimer = max(0f, nearMissSlowMoTimer - rawDt)
+            0.44f
+        } else {
+            1.0f
+        }
+        if (nearMissFlashTimer > 0f) {
+            nearMissFlashTimer = max(0f, nearMissFlashTimer - rawDt)
+        }
+        val dt = rawDt * timeScale
+
+        // Dynamic FOV Warp: Zoom punch on Near-Miss, Wide-Angle Speed Warp on HYPER RUN / Boost
+        val targetFov = when {
+            nearMissSlowMoTimer > 0f -> 1.16f
+            isHyperRun -> 0.80f
+            boostTimer > 0f -> 0.86f
+            else -> 1.0f
+        }
+        dynamicFovMultiplier += (targetFov - dynamicFovMultiplier) * min(1f, 0.18f * rawDt)
 
         for (i in particles.indices) {
             val pt = particles[i]
@@ -766,13 +1166,13 @@ class GameViewModel(
                 if (pt.y < 0.2f) pt.y = 12f
             }
             if (screenState == ScreenState.PLAYING && !isPaused) {
-                pt.z += speed * dt * 0.85f
+                pt.z += speed * dt * (if (isHyperRun) 1.35f else 0.85f)
                 if (pt.z > 8f) pt.z = -105f
             }
         }
 
         if (screenState != ScreenState.PLAYING) {
-            val previewSpeed = 0.24f * dt
+            val previewSpeed = 0.24f * rawDt
             scrollDistance += previewSpeed
             runCycle += previewSpeed * 1.25f
             for (i in sceneryRows.indices) {
@@ -785,10 +1185,105 @@ class GameViewModel(
 
         if (isPaused) return
 
+        // --- 1. STEP 3-SECOND INTRO CUTSCENE SEQUENCE (IntroCinematic) ---
+        if (introCutsceneTimerSec > 0f) {
+            introCutsceneTimerSec = max(0f, introCutsceneTimerSec - rawDt * 0.01667f)
+            val elapsed = introElapsedSec
+            if (elapsed >= 0.95f && !introSurgePlayed) {
+                introSurgePlayed = true
+                screenShakeIntensity = 8f
+                soundEngine.playPowerupSurge()
+                addPopup("⚡ ${currentCharacter.name.uppercase()} READY!", isPositive = true)
+            }
+            // During phase 3 (2.0s..3.0s), player starts sprinting as camera transitions to follow-cam
+            if (elapsed >= 1.95f) {
+                val introMoveSpeed = speed * ((elapsed - 1.95f) / 1.05f).coerceIn(0.15f, 1f) * rawDt
+                scrollDistance += introMoveSpeed
+                runCycle += introMoveSpeed * 1.35f
+            } else {
+                runCycle += 0.08f * rawDt
+            }
+            return
+        }
+
+        // --- 2. STEP NARRATIVE MILESTONE VOICE LINES / RADIO CHIMES ---
+        val curMetersInt = distanceMeters.toInt()
+        if (curMetersInt >= nextRadioMilestoneMeters) {
+            val milestone = nextRadioMilestoneMeters
+            nextRadioMilestoneMeters = when (milestone) {
+                100 -> 280
+                280 -> 600
+                600 -> 1000
+                else -> milestone + 500
+            }
+            when (milestone) {
+                100 -> broadcastRadioTransmission(
+                    speaker = "ORACLE-7 COMMS",
+                    callSign = "TELEMETRY // 100m",
+                    message = "${currentCharacter.name} hitting top stride! Chain Near-Miss dodges to ignite 8x HYPER RUN!",
+                    hiMessage = "${currentCharacter.hiName} शानदार रफ़्तार में है! 8x हाइपर रन के लिए करीबी बचाव करें!",
+                    accentColor = Color(0xFF64FFDA)
+                )
+                280 -> broadcastRadioTransmission(
+                    speaker = "ORACLE-7 COMMS",
+                    callSign = "RIFT DETECTED // 280m",
+                    message = "Chrono Core resonating! A Dimensional Rift Portal is opening ahead—leap through to shift worlds!",
+                    hiMessage = "क्रोनो कोर गूंज रहा है! आगे आयामी पोर्टल खुल रहा है—दुनिया बदलने के लिए उसमें कूदें!",
+                    accentColor = Color(0xFFB57CFF)
+                )
+                600 -> broadcastRadioTransmission(
+                    speaker = currentCharacter.name.uppercase(),
+                    callSign = "RUNNER LOG // 600m",
+                    message = "600m cleared in ${currentWorld.shortName}! Keep the combo multiplier alive!",
+                    hiMessage = "600m पार! कॉम्बो मल्टीप्लायर को बनाए रखें!",
+                    accentColor = Color(0xFFFFD03B)
+                )
+                1000 -> {
+                    triggerDimensionalPortalNow()
+                    broadcastRadioTransmission(
+                        speaker = "ORACLE-7 ALERT",
+                        callSign = "CRITICAL // 1,000m",
+                        message = "1,000m Milestone! Chrono Core resonating... Portal opening!",
+                        hiMessage = "1,000m पूरा! क्रोनो कोर गूंज रहा है... पोर्टल खुल रहा है!",
+                        accentColor = Color(0xFFFF6EC7)
+                    )
+                }
+                else -> broadcastRadioTransmission(
+                    speaker = "ORACLE-7 COMMS",
+                    callSign = "OVERDRIVE // ${milestone}m",
+                    message = "Unbelievable pace at ${milestone}m! Dimensional Rift opening ahead!",
+                    hiMessage = "${milestone}m पर शानदार रफ़्तार! आगे नया आयामी पोर्टल खुल रहा है!",
+                    accentColor = Color(0xFF00F0FF)
+                )
+            }
+        }
+
+        // Update 30-Second Flash Micro-Mission Timer
+        activeFlashMission?.let { mission ->
+            val nextTime = mission.timeRemainingSec - rawDt * 0.01667f
+            if (nextTime <= 0f) {
+                addPopup("⏱️ NEW FLASH MISSION!", isPositive = false)
+                spawnNextFlashMission()
+            } else {
+                activeFlashMission = mission.copy(timeRemainingSec = nextTime)
+            }
+        }
+
+        // Flow Meter passive momentum & Hyper-Run decay
+        if (isHyperRun) {
+            flowMeter = max(0f, flowMeter - 0.11f * rawDt)
+            if (flowMeter <= 25f) {
+                isHyperRun = false
+            }
+        } else {
+            flowMeter = (flowMeter + 0.035f * dt).coerceIn(0f, 100f)
+        }
+
         if (speed < maxSpeed) {
             speed = min(maxSpeed, speed + acceleration * dt)
         }
-        val effectiveSpeed = (if (boostTimer > 0f) speed * 1.38f else speed) * dt
+        val hyperSpeedFactor = if (isHyperRun) 1.25f else 1.0f
+        val effectiveSpeed = (if (boostTimer > 0f) speed * 1.38f else speed) * hyperSpeedFactor * dt
         scrollDistance += effectiveSpeed
 
         for (i in sceneryRows.indices) {
@@ -808,12 +1303,20 @@ class GameViewModel(
             }
         }
 
-        distanceMeters += effectiveSpeed * 0.85f
-        score += (effectiveSpeed * 3.6f * multiplierLevel).toInt()
+        val metersDelta = effectiveSpeed * 0.85f
+        distanceMeters += metersDelta
+        cleanDashAccumulator += metersDelta
+        if (cleanDashAccumulator >= 10f) {
+            val wholeSteps = (cleanDashAccumulator / 10f).toInt()
+            cleanDashAccumulator -= wholeSteps * 10f
+            advanceFlashMission(FlashMissionType.CLEAN_DASH_METERS, wholeSteps * 10)
+        }
+
+        score += (effectiveSpeed * 3.6f * multiplierLevel * flowMultiplier).toInt()
 
         val desiredX = targetLane * laneWidth
         val dx = desiredX - playerX
-        playerX += dx * min(1f, 0.26f * dt)
+        playerX += dx * min(1f, 0.28f * rawDt)
 
         if (isJumping) {
             playerY += verticalVelocity * dt
@@ -822,6 +1325,7 @@ class GameViewModel(
                 playerY = 0f
                 verticalVelocity = 0f
                 isJumping = false
+                screenShakeIntensity = max(screenShakeIntensity, 3.2f)
                 soundEngine.playFootstep(selectedWorldIndex)
             }
         }
@@ -852,6 +1356,21 @@ class GameViewModel(
         checkCollisions()
     }
 
+    private fun triggerNearMissReward(reasonTag: String) {
+        nearMissCount += 1
+        comboChain += 1
+        maxComboChain = max(maxComboChain, comboChain)
+        nearMissSlowMoTimer = 11f
+        nearMissFlashTimer = 20f
+        screenShakeIntensity = max(screenShakeIntensity, 8.5f)
+        gainFlow(24f)
+        val bonus = 500 * flowMultiplier
+        score += bonus
+        soundEngine.playNearMissSpark()
+        addPopup("⚡ $reasonTag +$bonus (${flowMultiplier}x)", isPositive = true)
+        advanceFlashMission(FlashMissionType.NEAR_MISS_STREAK, 1)
+    }
+
     private fun checkCollisions() {
         val playerBottomY = playerY
         val playerTopY = playerY + if (isSliding) 1.0f else 2.1f
@@ -867,25 +1386,66 @@ class GameViewModel(
                 }
             }
 
+            // Dimensional Portal spans a wider capture radius so player can leap right into the rift
+            if (e.type == EntityType.DIMENSIONAL_PORTAL && e.z in -1.6f..1.6f && abs(e.x - playerX) < 3.8f) {
+                e.active = false
+                enterDimensionalPortal()
+                continue
+            }
+
+            // Split-Second Near-Miss Detection as obstacle crosses player plane
+            val isObstacle = e.type == EntityType.HURDLE_LOW || e.type == EntityType.BARRIER_HIGH || e.type == EntityType.GATE_HAZARD
+            if (isObstacle && !e.nearMissChecked && e.z in -0.25f..1.45f) {
+                val lateralDist = abs(e.x - playerX)
+                val timeSinceSwipe = animTimeSec - lastLaneSwitchTimeSec
+                if (lateralDist in 1.15f..3.65f && timeSinceSwipe < 0.55f && e.lane == lastPreviousLane) {
+                    e.nearMissChecked = true
+                    triggerNearMissReward("NEAR MISS!")
+                } else if (lateralDist < 1.15f && e.type == EntityType.HURDLE_LOW && playerBottomY in 0.85f..1.65f) {
+                    e.nearMissChecked = true
+                    triggerNearMissReward("CLUTCH JUMP!")
+                } else if (lateralDist < 1.15f && e.type == EntityType.BARRIER_HIGH && isSliding) {
+                    e.nearMissChecked = true
+                    triggerNearMissReward("SLICK SLIDE!")
+                }
+            }
+
             if (e.z > -1.25f && e.z < 1.25f && abs(e.x - playerX) < 1.15f) {
                 var consumed = false
                 when (e.type) {
+                    EntityType.DIMENSIONAL_PORTAL -> {
+                        consumed = true
+                        enterDimensionalPortal()
+                    }
                     EntityType.COIN, EntityType.DIAMOND -> {
                         consumed = true
-                        runCoins += if (e.type == EntityType.DIAMOND) 2 else 1
-                        score += 50 * multiplierLevel
+                        val cVal = if (e.type == EntityType.DIAMOND) 2 else 1
+                        runCoins += cVal
+                        comboChain += 1
+                        maxComboChain = max(maxComboChain, comboChain)
+                        gainFlow(3.2f)
+                        score += 50 * multiplierLevel * flowMultiplier
                         soundEngine.playCoinChime()
+                        advanceFlashMission(FlashMissionType.COINS_SPRINT, cVal)
+                        if (isJumping || isSliding) {
+                            advanceFlashMission(FlashMissionType.ACROBAT_COINS, cVal)
+                        }
                     }
                     EntityType.RUBY -> {
                         consumed = true
                         runRubies += 1
-                        score += 250 * multiplierLevel
+                        comboChain += 2
+                        maxComboChain = max(maxComboChain, comboChain)
+                        gainFlow(12f)
+                        score += 250 * multiplierLevel * flowMultiplier
                         challengeGems = min(5, challengeGems + 1)
                         soundEngine.playRubyChime()
-                        addPopup("+1 RUBY ♦", isPositive = true)
+                        addPopup("+1 RUBY ♦ (${flowMultiplier}x)", isPositive = true)
                     }
                     EntityType.POWERUP -> {
                         consumed = true
+                        gainFlow(18f)
+                        screenShakeIntensity = max(screenShakeIntensity, 5.5f)
                         when (e.powerupKind) {
                             PowerupKind.MAGNET -> {
                                 magnetMax = 420f + magnetLevel * 90f
@@ -908,25 +1468,33 @@ class GameViewModel(
                     }
                     EntityType.GATE_BOOST -> {
                         consumed = true
-                        score += 400 * multiplierLevel
+                        score += 400 * multiplierLevel * flowMultiplier
                         aura = min(100, aura + 15)
+                        gainFlow(22f)
+                        screenShakeIntensity = max(screenShakeIntensity, 6f)
                         soundEngine.playPowerupSurge()
-                        addPopup("AURA BOOST!", isPositive = true)
+                        addPopup("🔥 FLOW BOOST!", isPositive = true)
                     }
                     EntityType.GATE_HAZARD -> {
                         consumed = true
                         aura = max(10, aura - 18)
+                        flowMeter = max(0f, flowMeter - 30f)
+                        isHyperRun = false
+                        comboChain = 0
+                        screenShakeIntensity = max(screenShakeIntensity, 8f)
                         soundEngine.playImpact(isShatter = true)
-                        addPopup("HAZARD!", isPositive = false)
+                        addPopup("⚠️ HAZARD DRAIN!", isPositive = false)
                     }
                     EntityType.HURDLE_LOW -> {
                         if (playerBottomY < 0.85f) {
-                            if (boostTimer > 0f) {
-                                consumed = true
-                                addPopup("SMASH!", isPositive = true)
+                            consumed = true
+                            if (boostTimer > 0f || isHyperRun) {
+                                screenShakeIntensity = max(screenShakeIntensity, 7.5f)
+                                score += 300 * flowMultiplier
+                                addPopup("💥 HYPER SMASH!", isPositive = true)
                             } else if (hasShield) {
                                 hasShield = false
-                                consumed = true
+                                screenShakeIntensity = max(screenShakeIntensity, 9f)
                                 soundEngine.playImpact(isShatter = true)
                                 addPopup("🛡️ SHIELD SAVED YOU!", isPositive = false)
                             } else {
@@ -937,12 +1505,14 @@ class GameViewModel(
                     }
                     EntityType.BARRIER_HIGH -> {
                         if (playerTopY > 1.75f) {
-                            if (boostTimer > 0f) {
-                                consumed = true
-                                addPopup("SMASH!", isPositive = true)
+                            consumed = true
+                            if (boostTimer > 0f || isHyperRun) {
+                                screenShakeIntensity = max(screenShakeIntensity, 7.5f)
+                                score += 300 * flowMultiplier
+                                addPopup("💥 HYPER SMASH!", isPositive = true)
                             } else if (hasShield) {
                                 hasShield = false
-                                consumed = true
+                                screenShakeIntensity = max(screenShakeIntensity, 9f)
                                 soundEngine.playImpact(isShatter = true)
                                 addPopup("🛡️ SHIELD SAVED YOU!", isPositive = false)
                             } else {
@@ -961,15 +1531,30 @@ class GameViewModel(
 
     private fun endGame() {
         soundEngine.playImpact(isShatter = false)
+        screenShakeIntensity = 12f
         val runDist = distanceMeters.toInt()
         val finalScore = score
+        val prevBest = highScores[selectedWorldIndex]
 
         coins += runCoins
         rubies += runRubies
         challengeDist = min(2000, challengeDist + runDist)
-        if (finalScore > highScores[selectedWorldIndex]) {
+
+        if (finalScore > prevBest) {
+            isNewPersonalBest = true
+            val diff = finalScore - prevBest
             highScores[selectedWorldIndex] = finalScore
+            closeCallHeadline = "🏆 NEW WORLD RECORD!"
+            closeCallSubtext = "You shattered your ${currentWorld.shortName} record by +%,d pts!".format(diff)
+            spawnConfettiBurst()
+        } else {
+            isNewPersonalBest = false
+            val pointsShort = (prevBest - finalScore).coerceAtLeast(1)
+            val estMetersShort = max(3, (pointsShort / max(1, 18 * multiplierLevel)).coerceAtMost(140))
+            closeCallHeadline = "🔥 SO CLOSE! ONLY ${estMetersShort}m AWAY!"
+            closeCallSubtext = "Just ${estMetersShort}m (~%,d pts) from beating your ${currentWorld.shortName} Best!".format(pointsShort)
         }
+
         screenState = ScreenState.GAME_OVER
 
         syncProfileToCloud()
@@ -986,6 +1571,34 @@ class GameViewModel(
                     rubiesCollected = runRubies.toLong()
                 )
             }
+        }
+    }
+
+    fun shareViralScorecard(context: Context) {
+        soundEngine.playPowerupSurge()
+        val shareText = buildString {
+            appendLine("⚡ HORIZON DASH: 3D LEGENDS ⚡")
+            appendLine("🏅 Rank: $runRankTier")
+            appendLine("🌍 World: ${currentWorld.shortName}")
+            appendLine("👟 Runner: ${currentCharacter.badgeEmoji} ${currentCharacter.name} (${currentBoard.name})")
+            appendLine("🔥 Score: %,d pts (%,dm)".format(score, distanceMeters.toInt()))
+            appendLine("💥 Max Combo: ${maxComboChain}x | ⚡ Near-Misses: $nearMissCount")
+            appendLine("🎯 Flash Missions Cleared: $flashMissionsCompleted | 🔥 Streak: ${dailyStreakDays}d")
+            append("#HorizonDash #3DRunner #HyperRun")
+        }
+        try {
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Horizon Dash — $runRankTier Scorecard")
+                putExtra(Intent.EXTRA_TEXT, shareText)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(sendIntent, "Share Viral Run Scorecard").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+        } catch (_: Exception) {
+            showToast("📸 Viral Scorecard Copied & Ready to Flex!")
         }
     }
 

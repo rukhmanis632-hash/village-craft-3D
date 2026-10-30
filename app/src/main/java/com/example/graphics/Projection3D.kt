@@ -30,11 +30,17 @@ class Camera3D(
     val camY: Float = 5.0f,
     val camZ: Float = 8.6f,
     val pitchRad: Float = 0.23f,
-    val focalLength: Float = min(screenWidth, screenHeight) * 0.92f,
+    val rollRad: Float = 0f,
+    val fovMultiplier: Float = 1.0f,
+    val shakeX: Float = 0f,
+    val shakeY: Float = 0f,
+    val focalLength: Float = min(screenWidth, screenHeight) * 0.92f * fovMultiplier,
     val horizonRatio: Float = 0.34f
 ) {
     private val cosPitch = cos(pitchRad)
     private val sinPitch = sin(pitchRad)
+    private val cosRoll = cos(rollRad)
+    private val sinRoll = sin(rollRad)
     val horizonY: Float = screenHeight * horizonRatio
 
     fun project(wx: Float, wy: Float, wz: Float): ProjectedPoint {
@@ -50,8 +56,15 @@ class Camera3D(
             return ProjectedPoint(0f, 0f, 0f, rz, false)
         }
         val scale = focalLength / rz
-        val sx = screenWidth * 0.5f + dx * scale
-        val sy = horizonY - ry * scale + (camY * cosPitch) * (focalLength / 18f)
+        val rawX = dx * scale
+        val rawY = -ry * scale + (camY * cosPitch) * (focalLength / 18f)
+
+        // Apply dynamic camera Dutch-angle roll on lane swipes + screen shake
+        val rolledX = rawX * cosRoll - rawY * sinRoll
+        val rolledY = rawX * sinRoll + rawY * cosRoll
+
+        val sx = screenWidth * 0.5f + rolledX + shakeX
+        val sy = horizonY + rolledY + shakeY
         return ProjectedPoint(sx, sy, scale, rz, true)
     }
 }

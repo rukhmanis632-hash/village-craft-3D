@@ -1003,11 +1003,60 @@
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-6px); }
         }
+        /* Hyper-Run Chromatic Aberration & Confetti Overlays */
+        #hyper-fx-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 12;
+            opacity: 0;
+            transition: opacity 0.2s;
+            box-shadow: inset 0 0 65px rgba(255, 46, 147, 0.55), inset 0 0 120px rgba(0, 245, 212, 0.35);
+        }
+        #confetti-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 45;
+        }
+        .flash-mission-card {
+            width: 100%;
+            max-width: 350px;
+            margin: 6px auto 0;
+            background: linear-gradient(90deg, rgba(16,22,42,0.92), rgba(43,19,66,0.92));
+            border: 2px solid #00f5d4;
+            border-radius: 14px;
+            padding: 6px 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.65);
+        }
+        .story-scorecard {
+            width: 100%;
+            background: linear-gradient(160deg, #101528 0%, #241138 55%, #0d1b2a 100%);
+            border: 3px solid #00f5d4;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.85), 0 0 18px rgba(0, 245, 212, 0.3);
+            text-align: center;
+        }
+        .close-call-banner {
+            width: 100%;
+            background: linear-gradient(90deg, #ff2e93, #ff8a00);
+            border: 2px solid #fff394;
+            border-radius: 14px;
+            padding: 6px 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.65);
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
 
     <div id="canvas-container"></div>
+    <div id="hyper-fx-overlay"></div>
+    <canvas id="confetti-canvas"></canvas>
     <div id="toast-banner" class="hidden">Notification</div>
 
     <!-- ==================== SCREEN 1: MAIN MENU (मुख्य मेन्यू) ==================== -->
@@ -1020,11 +1069,16 @@
                     <span id="menu-coins">24,180</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
+                    <div class="currency-pill" style="border-color:#ff758f; background:linear-gradient(180deg,#59182b,#2b0914); padding:4px 10px;" title="Daily Run Streak">
+                        <span>🔥</span>
+                        <span id="menu-streak" style="font-size:0.95rem; color:#ffccd5;">5d</span>
+                    </div>
                     <div class="currency-pill">
                         <span class="ruby-badge">♦</span>
                         <span id="menu-rubies">142</span>
                     </div>
                     <button class="chest-btn" id="claim-chest-btn" title="Open Daily Chest">🧰</button>
+                    <button class="chest-btn" id="download-html-btn" title="Save Single-File HTML Game" style="background:linear-gradient(180deg,#00b4d8,#0077b6); border-color:#90e0ef;">💾</button>
                 </div>
             </div>
 
@@ -1094,10 +1148,14 @@
                     <div class="hud-score-num" id="score">0</div>
                     <div class="hud-multiplier-row">
                         <span class="hud-multiplier" id="hud-mult">x3</span>
-                        <div class="hud-aura-mini" title="Aura / Street Cred">
-                            <div id="aura-bar"></div>
+                        <div style="display:flex; flex-direction:column; gap:2px;">
+                            <div class="hud-aura-mini" title="Arcade Flow & Hyper-Run Meter">
+                                <div id="aura-bar"></div>
+                            </div>
+                            <div id="hud-flow-label" style="font-size:0.65rem; font-weight:900; color:#80f8ff; letter-spacing:0.5px;">1x FLOW</div>
                         </div>
                     </div>
+                    <div id="hud-combo-pill" style="font-size:0.75rem; font-weight:900; color:#ffd54f; margin-top:2px; text-shadow:0 2px 2px #000;">⚡ 0 COMBO • 0 NEAR-MISS</div>
                 </div>
                 <div class="hud-right-stats">
                     <div class="hud-distance" id="hud-distance">0m</div>
@@ -1107,6 +1165,21 @@
                         <span id="hud-rubies" style="color:#ff8fa3;">0</span>
                         <span class="ruby-badge" style="width:20px;height:20px;font-size:0.7rem;">♦</span>
                     </div>
+                </div>
+            </div>
+
+            <!-- 30-Second Flash Micro-Mission HUD Banner -->
+            <div class="flash-mission-card" id="hud-flash-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; font-weight:900;">
+                    <span id="flash-title" style="color:#00f5d4;">⚡ 30s FLASH MISSION</span>
+                    <span id="flash-timer" style="color:#ffd166;">⏱ 30s • +250 ★</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.82rem; font-weight:800; margin:2px 0 4px;">
+                    <span id="flash-subtitle" style="color:#fff;">Grab 15 Coins</span>
+                    <span id="flash-progress-txt" style="color:#00f5d4;">0/15</span>
+                </div>
+                <div style="width:100%; height:6px; background:rgba(0,0,0,0.55); border-radius:6px; overflow:hidden;">
+                    <div id="flash-progress-fill" style="width:8%; height:100%; background:linear-gradient(90deg,#00f5d4,#ff2e93,#ffe600); transition:width 0.15s;"></div>
                 </div>
             </div>
 
@@ -1187,27 +1260,47 @@
     <!-- ==================== SCREEN 4: GAME OVER & SUMMARY (गेम ओवर) ==================== -->
     <div id="end-screen" class="screen-layer menu-backdrop hidden">
         <div class="shell-card">
-            <div style="text-align:center; margin-top:4px;">
-                <p class="gameover-subtitle" id="judge-comment">DEFEATED!</p>
-                <h1 class="gameover-main-title">GAME OVER</h1>
+            <div class="close-call-banner" id="close-call-box">
+                <div id="judge-comment" style="font-size:0.95rem; font-weight:900; color:#fff; letter-spacing:0.5px;">🔥 SO CLOSE! ONLY 12m AWAY!</div>
+                <div id="close-call-sub" style="font-size:0.75rem; font-weight:700; color:#fff6cc;">Tap Instant Retry to smash your Personal Best!</div>
             </div>
 
-            <!-- Stone Run Summary Box -->
-            <div class="summary-stone-box">
-                <div class="tablet-header" style="margin-bottom:4px;">
-                    <span class="en">RUN SUMMARY</span>
-                    <span class="hi">रन का विवरण</span>
+            <!-- Gen-Z Social Story Viral Scorecard -->
+            <div class="story-scorecard">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div style="text-align:left;">
+                        <div style="font-size:0.68rem; font-weight:900; color:#00f5d4; letter-spacing:1px;">HORIZON DASH • STORY CARD</div>
+                        <div style="font-size:0.85rem; font-weight:800; color:#fff;">@RunnerLegend • 🔥 <span id="story-streak">5</span>d Streak</div>
+                    </div>
+                    <span id="story-rank-badge" style="background:linear-gradient(90deg,#ff2e93,#7b2cbf); border:1.5px solid #fff; padding:3px 10px; border-radius:10px; font-size:0.74rem; font-weight:900;">S-TIER LEGEND</span>
                 </div>
-                <div class="summary-distance-big" id="final-distance">4,821m</div>
-                <div class="summary-stat-line">
-                    <span style="color:#ffe266;"><span id="final-coins">356</span> Coins</span>
-                    <span class="coin-badge" style="width:24px;height:24px;font-size:0.8rem;">★</span>
+
+                <div class="summary-distance-big" id="final-distance" style="margin:2px 0;">4,821m</div>
+                <div class="summary-total-score" id="final-score" style="margin:0 0 8px; font-size:1.85rem;">98,420</div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px;">
+                    <div style="background:rgba(255,255,255,0.08); border-radius:10px; padding:5px;">
+                        <div id="final-combo" style="font-size:0.95rem; font-weight:900; color:#00f5d4;">14x</div>
+                        <div style="font-size:0.62rem; color:#ccc; font-weight:800;">MAX COMBO</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.08); border-radius:10px; padding:5px;">
+                        <div id="final-nearmiss" style="font-size:0.95rem; font-weight:900; color:#ff2e93;">6</div>
+                        <div style="font-size:0.62rem; color:#ccc; font-weight:800;">NEAR-MISS</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.08); border-radius:10px; padding:5px;">
+                        <div id="final-flash" style="font-size:0.95rem; font-weight:900; color:#ffd166;">2</div>
+                        <div style="font-size:0.62rem; color:#ccc; font-weight:800;">FLASH CLEARS</div>
+                    </div>
                 </div>
-                <div class="summary-stat-line">
-                    <span style="color:#ff8fa3;"><span id="final-rubies">2</span> Rubies</span>
-                    <span class="ruby-badge" style="width:22px;height:22px;font-size:0.75rem;">♦</span>
+
+                <div class="summary-stat-line" style="font-size:0.92rem;">
+                    <span style="color:#ffe266;">★ <span id="final-coins">356</span> Coins</span>
+                    <span style="color:#ff8fa3;">♦ <span id="final-rubies">2</span> Rubies</span>
                 </div>
-                <div class="summary-total-score" id="final-score">98,420</div>
+
+                <button class="btn-stone-gold" id="share-story-btn" style="width:100%; margin-top:8px; padding:8px; background:linear-gradient(90deg,#00b4d8,#7209b7); border-color:#80ffdb; flex-direction:row; gap:8px;">
+                    <span class="en-label" style="font-size:0.9rem;">📤 SHARE STORY SCORECARD</span>
+                </button>
             </div>
 
             <!-- Item Unlocked Banner -->
@@ -1219,13 +1312,13 @@
                 </div>
             </div>
 
-            <!-- Run Again & Main Menu Buttons -->
+            <!-- Zero-Wait Instant Respawn & Main Menu Buttons -->
             <button class="btn-green-bevel" id="restart-btn">
-                <span>RUN AGAIN</span>
+                <span>⚡ INSTANT RETRY</span>
                 <span>↻</span>
             </button>
 
-            <button class="btn-stone-gold" id="gameover-menu-btn" style="width:65%; max-width:220px; padding:10px 18px;">
+            <button class="btn-stone-gold" id="gameover-menu-btn" style="width:65%; max-width:220px; padding:8px 18px;">
                 <span class="en-label">MAIN MENU</span>
                 <span class="hi-label">मुख्य मेन्यू</span>
             </button>
@@ -1320,7 +1413,8 @@
             { id: 'leo', name: 'Explorer Leo', hi: 'खोजकर्ता लियो', shirt: 0x1e6be6, pants: 0x2b2d38, bag: 0x3b5e2b, skin: 0xd99b72, unlocked: true, cost: 0 },
             { id: 'kai', name: 'Cyber Ninja Kai', hi: 'साइबर निंजा काई', shirt: 0x00e5ff, pants: 0x141829, bag: 0xff007f, skin: 0xe0ac8b, unlocked: true, cost: 0 },
             { id: 'ignis', name: 'Magma Vanguard', hi: 'मैग्मा योद्धा', shirt: 0xff4500, pants: 0x241512, bag: 0xffae00, skin: 0xb87a56, unlocked: true, cost: 0 },
-            { id: 'aria', name: 'Glacier Ranger', hi: 'ग्लेशियर रेंजर', shirt: 0xffffff, pants: 0x1d4e89, bag: 0x38b6ff, skin: 0xf0c4a8, unlocked: true, cost: 0 }
+            { id: 'aria', name: 'Glacier Ranger', hi: 'ग्लेशियर रेंजर', shirt: 0xffffff, pants: 0x1d4e89, bag: 0x38b6ff, skin: 0xf0c4a8, unlocked: true, cost: 0 },
+            { id: 'nova', name: 'Neon Street Nova', hi: 'नियॉन स्ट्रीट नोवा', shirt: 0xff2e93, pants: 0x101426, bag: 0x00f5d4, skin: 0xe5b594, unlocked: true, cost: 0 }
         ];
 
         // --- PERSISTENT PLAYER PROFILE ---
@@ -2093,6 +2187,26 @@
         shieldMesh.visible = false;
         playerPivot.add(shieldMesh);
 
+        // 3D Neon-Pastel Sneaker Light-Ribbon Trails + Hyper-Run Ground Ring
+        const sneakerTrailMatL = new THREE.MeshBasicMaterial({ color: 0x00f5d4, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+        const sneakerTrailMatR = new THREE.MeshBasicMaterial({ color: 0xff2e93, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+        const sneakerTrailL = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 2.8), sneakerTrailMatL);
+        sneakerTrailL.rotation.x = -Math.PI / 2;
+        sneakerTrailL.position.set(-0.22, 0.12, 1.5);
+        const sneakerTrailR = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 2.8), sneakerTrailMatR);
+        sneakerTrailR.rotation.x = -Math.PI / 2;
+        sneakerTrailR.position.set(0.22, 0.12, 1.5);
+        playerGroup.add(sneakerTrailL, sneakerTrailR);
+
+        const hyperRing = new THREE.Mesh(
+            new THREE.RingGeometry(1.2, 1.65, 24),
+            new THREE.MeshBasicMaterial({ color: 0xff2e93, transparent: true, opacity: 0.75, side: THREE.DoubleSide })
+        );
+        hyperRing.rotation.x = -Math.PI / 2;
+        hyperRing.position.y = 0.06;
+        hyperRing.visible = false;
+        playerGroup.add(hyperRing);
+
         function applyCharacterTheme() {
             const c = CHARACTERS.find(ch => ch.id === profile.selectedChar) || CHARACTERS[0];
             matShirt.color.setHex(c.shirt);
@@ -2100,6 +2214,8 @@
             matBag.color.setHex(c.bag);
             matSkin.color.setHex(c.skin);
             matShoe.color.setHex(c.shirt);
+            sneakerTrailMatL.color.setHex(c.id === 'nova' ? 0x00f5d4 : c.shirt);
+            sneakerTrailMatR.color.setHex(c.id === 'nova' ? 0xff2e93 : c.bag);
         }
 
         // --- APPLY ACTIVE WORLD ENVIRONMENT & BACKDROP ---
@@ -2530,6 +2646,106 @@
         let touchStartX = 0;
         let touchStartY = 0;
 
+        // --- GEN-Z VIRAL FLASH MISSIONS, CONFETTI & DOPAMINE HELPERS ---
+        const FLASH_MISSION_POOL = [
+            { type: 'coins', title: '⚡ 30s FLASH: COIN RUSH', sub: 'Grab 15 Coins before timer ends!', target: 15, coins: 280, rubies: 2 },
+            { type: 'nearmiss', title: '🔥 30s FLASH: RAZOR EDGE', sub: 'Pull off 2 Split-Second Near-Misses!', target: 2, coins: 400, rubies: 3 },
+            { type: 'acrobat', title: '👟 30s FLASH: STREET ACROBAT', sub: 'Jump or Slide 5 Times at high speed!', target: 5, coins: 320, rubies: 2 },
+            { type: 'dash', title: '🚀 30s FLASH: HYPER SPRINT', sub: 'Sprint 160m without stumbling!', target: 160, coins: 350, rubies: 2 }
+        ];
+        let flashMissionIdx = 0;
+        let confettiItems = [];
+        const confettiCanvas = document.getElementById('confetti-canvas');
+        const confettiCtx = confettiCanvas.getContext('2d');
+
+        function resizeConfetti() {
+            confettiCanvas.width = window.innerWidth;
+            confettiCanvas.height = window.innerHeight;
+        }
+        resizeConfetti();
+        window.addEventListener('resize', resizeConfetti);
+
+        function spawnConfettiBurst() {
+            const palette = ['#00f5d4', '#ff2e93', '#ffe600', '#7209b7', '#4cc9f0'];
+            for (let i = 0; i < 55; i++) {
+                confettiItems.push({
+                    x: window.innerWidth * 0.5 + (Math.random() - 0.5) * 140,
+                    y: window.innerHeight * 0.25,
+                    vx: (Math.random() - 0.5) * 12,
+                    vy: -Math.random() * 9 - 2,
+                    size: 6 + Math.random() * 6,
+                    color: palette[i % palette.length],
+                    life: 1.0
+                });
+            }
+        }
+
+        function updateConfetti(dt) {
+            if (confettiItems.length === 0) return;
+            confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            for (let i = confettiItems.length - 1; i >= 0; i--) {
+                const p = confettiItems[i];
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 0.38 * dt;
+                p.life -= 0.018 * dt;
+                if (p.life <= 0) {
+                    confettiItems.splice(i, 1);
+                    continue;
+                }
+                confettiCtx.fillStyle = p.color;
+                confettiCtx.globalAlpha = Math.max(0, p.life);
+                confettiCtx.fillRect(p.x, p.y, p.size, p.size * 0.65);
+            }
+            confettiCtx.globalAlpha = 1.0;
+        }
+
+        function spawnNextFlashMission() {
+            const tpl = FLASH_MISSION_POOL[flashMissionIdx % FLASH_MISSION_POOL.length];
+            flashMissionIdx++;
+            state.flashMission = {
+                type: tpl.type,
+                title: tpl.title,
+                sub: tpl.sub,
+                target: tpl.target,
+                progress: 0,
+                timeLeft: 30.0,
+                coins: tpl.coins,
+                rubies: tpl.rubies,
+                done: false
+            };
+            updateFlashMissionHUD();
+        }
+
+        function advanceFlashMission(type, amount) {
+            const m = state.flashMission;
+            if (!m || m.done || m.type !== type) return;
+            m.progress = Math.min(m.target, m.progress + amount);
+            if (m.progress >= m.target) {
+                m.done = true;
+                state.flashClearedCount = (state.flashClearedCount || 0) + 1;
+                state.runCoins += m.coins;
+                state.runRubies += m.rubies;
+                state.score += 1000 * profile.upgrades.multiplierLevel;
+                state.aura = Math.min(100, state.aura + 25);
+                playSound('ruby');
+                spawnConfettiBurst();
+                showPopup(`🎉 FLASH CLEAR! +${m.coins}★`, 'w-text');
+                setTimeout(() => { if (state.isPlaying) spawnNextFlashMission(); }, 1800);
+            }
+            updateFlashMissionHUD();
+        }
+
+        function updateFlashMissionHUD() {
+            const m = state.flashMission;
+            if (!m) return;
+            document.getElementById('flash-title').textContent = m.done ? '✅ MISSION COMPLETE!' : m.title;
+            document.getElementById('flash-timer').textContent = `⏱ ${Math.ceil(m.timeLeft)}s • +${m.coins}★`;
+            document.getElementById('flash-subtitle').textContent = m.sub;
+            document.getElementById('flash-progress-txt').textContent = `${Math.floor(m.progress)}/${m.target}`;
+            document.getElementById('flash-progress-fill').style.width = `${Math.max(6, (m.progress / m.target) * 100)}%`;
+        }
+
         function handleInput(type, val) {
             if (!state.isPlaying || state.isPaused) return;
             initAudio();
@@ -2538,6 +2754,10 @@
                 const prevLane = state.lane;
                 state.lane = Math.max(-1, Math.min(1, state.lane + val));
                 if (state.lane !== prevLane) {
+                    state.lastLaneSwipeTime = performance.now();
+                    state.lastPrevLane = prevLane;
+                    state.cameraRoll = -val * 0.085;
+                    state.shakeIntensity = Math.max(state.shakeIntensity || 0, 0.08);
                     SoundManager.play('swipe_whoosh', { rate: val < 0 ? 0.96 : 1.05 });
                 }
             } else if (type === 'jump') {
@@ -2546,6 +2766,8 @@
                     playerPivot.scale.y = 1.0;
                     state.verticalVelocity = CONFIG.jumpPower;
                     state.isJumping = true;
+                    state.shakeIntensity = Math.max(state.shakeIntensity || 0, 0.12);
+                    advanceFlashMission('acrobat', 1);
                     SoundManager.play('jump_whoosh');
                 }
             } else if (type === 'slide') {
@@ -2554,6 +2776,8 @@
                 }
                 state.isSliding = true;
                 state.slideTimer = 38;
+                state.shakeIntensity = Math.max(state.shakeIntensity || 0, 0.15);
+                advanceFlashMission('acrobat', 1);
                 SoundManager.play('slide_scrape');
             }
         }
@@ -2743,6 +2967,30 @@
                         if (hit) {
                             obj.userData.active = false;
                             obj.visible = false;
+                            if (obj.userData.type === 'coin' || obj.userData.type === 'ruby') {
+                                state.comboChain = (state.comboChain || 0) + 1;
+                                state.maxComboChain = Math.max(state.maxComboChain || 0, state.comboChain);
+                                state.aura = Math.min(100, state.aura + 2.2);
+                                if (obj.userData.type === 'coin') advanceFlashMission('coins', 1);
+                            }
+                        }
+                    } else if (!obj.userData.nearMissChecked && (obj.userData.type === 'hurdle' || obj.userData.type === 'barrier')) {
+                        // Split-Second Near-Miss Detection (last-second dodge or tight adjacent lane skim)
+                        const distX = Math.abs(obj.position.x - pX);
+                        const swipedRecently = (performance.now() - (state.lastLaneSwipeTime || 0)) < 550;
+                        if ((swipedRecently && distX < 3.6) || (distX >= 1.15 && distX <= 2.35)) {
+                            obj.userData.nearMissChecked = true;
+                            state.nearMissCount = (state.nearMissCount || 0) + 1;
+                            state.comboChain = (state.comboChain || 0) + 2;
+                            state.maxComboChain = Math.max(state.maxComboChain || 0, state.comboChain);
+                            state.aura = Math.min(100, state.aura + 16);
+                            state.nearMissSlowMo = 14; // ~0.22s slow-mo spark
+                            state.shakeIntensity = 0.22;
+                            const bonus = 150 * mult * (state.flowMult || 1);
+                            state.score += bonus;
+                            advanceFlashMission('nearmiss', 1);
+                            playSound('ruby');
+                            showPopup(`⚡ NEAR MISS! +${bonus}`, 'coin-text');
                         }
                     }
                 }
@@ -2800,11 +3048,37 @@
                 return;
             }
 
+            // Near-Miss Brief Slow-Mo Spark Dilation
+            let timeScale = 1.0;
+            if ((state.nearMissSlowMo || 0) > 0) {
+                state.nearMissSlowMo = Math.max(0, state.nearMissSlowMo - dt);
+                timeScale = 0.45;
+            }
+
+            // Arcade Flow Multiplier (1x -> 2x -> 4x -> 8x HYPER RUN)
+            state.aura = Math.min(100, Math.max(10, state.aura + 0.045 * dt));
+            const isHyper = state.aura >= 90;
+            state.flowMult = isHyper ? 8 : (state.aura >= 60 ? 4 : (state.aura >= 30 ? 2 : 1));
+            const flowLabel = isHyper ? '🔥 8x HYPER RUN' : (state.flowMult === 4 ? '⚡ 4x OVERDRIVE' : (state.flowMult === 2 ? '⚡ 2x VIBE FLOW' : '1x FLOW'));
+
             // Speed & Boost Progression (100% locked to frame delta)
             if (state.speed < CONFIG.maxSpeed) {
                 state.speed = Math.min(CONFIG.maxSpeed, state.speed + CONFIG.acceleration * dt);
             }
-            const effectiveSpeed = (state.boostTimer > 0 ? state.speed * 1.38 : state.speed) * dt;
+            const hyperSpeedBoost = isHyper ? 1.18 : 1.0;
+            const effectiveSpeed = (state.boostTimer > 0 ? state.speed * 1.38 : state.speed * hyperSpeedBoost) * dt * timeScale;
+
+            // Update 30s Flash Micro-Mission Timer
+            if (state.flashMission && !state.flashMission.done) {
+                state.flashMission.timeLeft -= (dt * 16.667) / 1000;
+                advanceFlashMission('dash', effectiveSpeed * 0.85);
+                if (state.flashMission.timeLeft <= 0) {
+                    spawnNextFlashMission();
+                } else {
+                    updateFlashMissionHUD();
+                }
+            }
+            updateConfetti(dt);
 
             // Move Obstacles & Collectibles by exact world displacement `effectiveSpeed`
             for (let i = objects.length - 1; i >= 0; i--) {
@@ -2829,20 +3103,30 @@
             }
 
             // Scroll Road Texture in the EXACT forward direction (+) and 1:1 world scale (UV_PER_WORLD_UNIT)
-            // so cobblestones/planks stay 100% stationary relative to roadside pillars and obstacles
             if (road.material.map) {
                 road.material.map.offset.y = (road.material.map.offset.y + effectiveSpeed * UV_PER_WORLD_UNIT) % 1;
             }
 
             // Distance & Score Update (1 world unit = 1 meter)
             state.distanceMeters += effectiveSpeed * 0.85;
-            state.score += effectiveSpeed * 3.5 * profile.upgrades.multiplierLevel;
+            state.score += effectiveSpeed * 3.5 * profile.upgrades.multiplierLevel * state.flowMult;
 
             // Lateral Lane Movement with Responsive Smoothing
             const targetX = state.lane * CONFIG.laneWidth;
             const dx = targetX - playerGroup.position.x;
             playerGroup.position.x += dx * Math.min(1, 0.26 * dt);
             playerPivot.rotation.z = -dx * 0.11;
+
+            // Animate 3D Sneaker Trails & Hyper Ring
+            sneakerTrailL.scale.y = 0.7 + (state.speed / CONFIG.maxSpeed) * (isHyper ? 1.5 : 0.9);
+            sneakerTrailR.scale.y = sneakerTrailL.scale.y;
+            hyperRing.visible = isHyper || state.boostTimer > 0;
+            if (hyperRing.visible) {
+                hyperRing.rotation.z += 0.08 * dt;
+                const s = 1.0 + Math.sin(now * 0.012) * 0.12;
+                hyperRing.scale.set(s, s, 1);
+            }
+            document.getElementById('hyper-fx-overlay').style.opacity = (isHyper || state.boostTimer > 0 || (state.nearMissSlowMo || 0) > 0) ? '1' : '0';
 
             // Jump & Gravity
             if (state.isJumping) {
@@ -2856,6 +3140,7 @@
                 if (playerGroup.position.y <= 0) {
                     playerGroup.position.y = 0;
                     state.isJumping = false;
+                    state.shakeIntensity = 0.10;
                     SoundManager.play('land_thud');
                 }
             }
@@ -2872,7 +3157,6 @@
                 }
             } else if (!state.isJumping) {
                 if (state.boostTimer > 0) {
-                    // Surfing pose on Hoverboard during Speed Boost
                     playerPivot.rotation.x = -0.06;
                     legL.rotation.x = 0.22;
                     legR.rotation.x = -0.22;
@@ -2880,20 +3164,17 @@
                     armR.rotation.x = 0.3;
                     playerPivot.position.y = 0.12 + Math.sin(idleTime * 2.5) * 0.04;
                 } else {
-                    // Advance stride cycle proportionally to actual ground distance covered (`effectiveSpeed`)
-                    // One half-stride = ~1.18 world units, matching leg length * swing arc so feet never skate
                     state.runCycle += effectiveSpeed * 1.32;
                     const strideSin = Math.sin(state.runCycle);
                     const strideCos = Math.cos(state.runCycle);
 
-                    playerPivot.rotation.x = -0.10; // Natural athletic forward lean
+                    playerPivot.rotation.x = -0.10;
                     legL.rotation.x = strideSin * 0.82;
                     legR.rotation.x = -strideSin * 0.82;
                     armL.rotation.x = -strideSin * 0.72;
                     armR.rotation.x = strideSin * 0.72;
                     playerPivot.position.y = Math.abs(strideCos) * 0.11;
 
-                    // Trigger surface footstep at each foot plant
                     const currentSign = strideSin >= 0 ? 1 : -1;
                     if (SoundManager.lastStepPhase !== 0 && SoundManager.lastStepPhase !== currentSign) {
                         SoundManager.playFootstep(profile.selectedWorld);
@@ -2924,12 +3205,27 @@
             document.getElementById('hud-distance').innerText = Math.floor(state.distanceMeters).toLocaleString() + "m";
             document.getElementById('hud-coins').innerText = state.runCoins.toLocaleString();
             document.getElementById('hud-rubies').innerText = state.runRubies.toLocaleString();
-            document.getElementById('hud-mult').innerText = "x" + profile.upgrades.multiplierLevel;
+            document.getElementById('hud-mult').innerText = "x" + (profile.upgrades.multiplierLevel * state.flowMult);
+            document.getElementById('hud-flow-label').innerText = flowLabel;
+            document.getElementById('hud-combo-pill').innerText = `⚡ ${state.comboChain || 0} COMBO • ${state.nearMissCount || 0} NEAR-MISS`;
             document.getElementById('aura-bar').style.width = state.aura + "%";
 
-            // Dynamic Camera Follow (smooth X & Y tracking)
-            camera.position.x += (playerGroup.position.x * 0.45 - camera.position.x) * Math.min(1, 0.15 * dt);
-            camera.position.y += ((5.2 + playerGroup.position.y * 0.3) - camera.position.y) * Math.min(1, 0.15 * dt);
+            // Dynamic Camera Follow + Dutch Roll + FOV Warp + Haptic Shake
+            const shake = state.shakeIntensity || 0;
+            const shakeX = (Math.random() - 0.5) * shake;
+            const shakeY = (Math.random() - 0.5) * shake;
+            state.shakeIntensity = Math.max(0, shake - 0.015 * dt);
+            state.cameraRoll = (state.cameraRoll || 0) * Math.pow(0.84, dt);
+
+            const targetFov = (state.nearMissSlowMo || 0) > 0 ? 54 : (isHyper || state.boostTimer > 0 ? 71 : 60);
+            if (Math.abs(camera.fov - targetFov) > 0.1) {
+                camera.fov += (targetFov - camera.fov) * 0.14 * dt;
+                camera.updateProjectionMatrix();
+            }
+
+            camera.position.x += (playerGroup.position.x * 0.45 - camera.position.x) * Math.min(1, 0.15 * dt) + shakeX;
+            camera.position.y += ((5.2 + playerGroup.position.y * 0.3) - camera.position.y) * Math.min(1, 0.15 * dt) + shakeY;
+            camera.rotation.z = state.cameraRoll || 0;
 
             renderer.render(scene, camera);
         }
@@ -2950,14 +3246,22 @@
             state.runCoins = 0;
             state.runRubies = 0;
             state.distanceMeters = 0;
-            state.aura = 75;
+            state.aura = 35;
+            state.flowMult = 1;
+            state.comboChain = 0;
+            state.maxComboChain = 0;
+            state.nearMissCount = 0;
+            state.flashClearedCount = 0;
+            state.nearMissSlowMo = 0;
+            state.shakeIntensity = 0;
+            state.cameraRoll = 0;
             state.speed = CONFIG.baseSpeed;
             state.lane = 0;
             state.isJumping = false;
             state.isSliding = false;
             playerPivot.scale.y = 1.0;
+            spawnNextFlashMission();
 
-            // Default active Magnet at start of run so HUD matches reference screenshot 2 right away
             state.magnetMax = 450 + profile.upgrades.magnetLevel * 80;
             state.magnetTimer = state.magnetMax;
             state.hasShield = false;
@@ -2978,7 +3282,6 @@
             objects = [];
             playerGroup.position.set(0, 0, 0);
 
-            // Pre-spawn initial waves along the road so coins & obstacles appear right away
             spawnPattern(-42);
             spawnPattern(-78);
             spawnPattern(-114);
@@ -2987,11 +3290,15 @@
 
         function endGame() {
             state.isPlaying = false;
+            document.getElementById('hyper-fx-overlay').style.opacity = '0';
             SoundManager.play('crash');
             SoundManager.playBGM('bgm_menu');
 
             const runDist = Math.floor(state.distanceMeters);
             const totalScore = Math.floor(state.score);
+            const prevBestDist = profile.bestDist || 1200;
+            const distDelta = prevBestDist - runDist;
+            if (runDist > prevBestDist) profile.bestDist = runDist;
 
             profile.coins += state.runCoins;
             profile.rubies += state.runRubies;
@@ -3008,7 +3315,25 @@
             document.getElementById('final-coins').innerText = state.runCoins.toLocaleString();
             document.getElementById('final-rubies').innerText = state.runRubies.toLocaleString();
             document.getElementById('final-score').innerText = totalScore.toLocaleString();
-            document.getElementById('judge-comment').innerText = totalScore > 15000 ? "NEW LEGEND!" : "DEFEATED!";
+            document.getElementById('final-combo').innerText = (state.maxComboChain || 0) + "x";
+            document.getElementById('final-nearmiss').innerText = (state.nearMissCount || 0).toString();
+            document.getElementById('final-flash').innerText = (state.flashClearedCount || 0).toString();
+
+            const rank = totalScore >= 80000 ? '👑 SS+ HYPER GOD' : (totalScore >= 40000 ? '🔥 S-TIER LEGEND' : (totalScore >= 18000 ? '⚡ A+ VIBE RUNNER' : '✨ B+ STREET PRO'));
+            document.getElementById('story-rank-badge').innerText = rank;
+
+            if (runDist > prevBestDist) {
+                document.getElementById('judge-comment').innerText = `👑 NEW PERSONAL RECORD! (+${runDist - prevBestDist}m)`;
+                document.getElementById('close-call-sub').innerText = 'Share your Story Scorecard or keep the streak alive!';
+                spawnConfettiBurst();
+            } else if (distDelta <= 180) {
+                document.getElementById('judge-comment').innerText = `🔥 SO CLOSE! ONLY ${distDelta}m AWAY FROM RECORD!`;
+                document.getElementById('close-call-sub').innerText = 'One more run to shatter your personal best!';
+            } else {
+                const nextMilestone = (Math.floor(runDist / 500) + 1) * 500;
+                document.getElementById('judge-comment').innerText = `⚡ ONLY ${nextMilestone - runDist}m TO ${nextMilestone}m MILESTONE!`;
+                document.getElementById('close-call-sub').innerText = 'Zero-wait instant respawn ready below!';
+            }
         }
 
         function showMainMenu() {
@@ -3405,6 +3730,31 @@
             playSound('powerup');
             showToast('Speed Boost Equipped!');
         });
+
+        document.getElementById('share-story-btn').addEventListener('click', () => {
+            const shareText = `⚡ HORIZON DASH STORY CARD ⚡\n🏆 Score: ${document.getElementById('final-score').innerText} (${document.getElementById('story-rank-badge').innerText})\n🏃 Distance: ${document.getElementById('final-distance').innerText}\n🔥 Max Combo: ${document.getElementById('final-combo').innerText} | Near-Misses: ${document.getElementById('final-nearmiss').innerText}`;
+            if (navigator.share) {
+                navigator.share({ title: 'Horizon Dash Scorecard', text: shareText }).catch(() => {});
+            } else if (navigator.clipboard) {
+                navigator.clipboard.writeText(shareText);
+                showToast('📋 Story Scorecard Copied to Clipboard!');
+            } else {
+                showToast(shareText);
+            }
+        });
+
+        function downloadSelfHtmlFile() {
+            const htmlSource = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlSource], { type: 'text/html;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'Horizon_Dash_Ultra_3D_Web_Game.html';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => a.remove(), 500);
+            showToast('💾 Horizon_Dash_Ultra_3D_Web_Game.html Downloaded!');
+        }
+        document.getElementById('download-html-btn').addEventListener('click', downloadSelfHtmlFile);
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;

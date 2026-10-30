@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,8 +51,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
-import com.example.auth.attemptAutoSignIn
+import com.example.auth.FirebaseDiagnostics
+import com.example.auth.findActivity
 import com.example.auth.onGoogleSignInClicked
+import com.example.auth.signInWithGoogleWebOAuth
 import com.example.graphics.Camera3D
 import com.example.graphics.Character3DRenderer.renderRunnerCharacter3D
 import com.example.graphics.WorldEnvironmentRenderer.renderRoad3D
@@ -59,15 +62,18 @@ import com.example.graphics.WorldEnvironmentRenderer.renderSkyAndHorizon
 import com.example.model.HOVERBOARDS
 import com.example.model.RUNNER_CHARACTERS
 import com.example.model.WORLD_THEMES
+import com.example.ui.components.FirebaseDiagnosticModal
 import com.example.ui.components.GoldLight
 import com.example.ui.components.GoldMid
 import com.example.ui.components.GreenDark
 import com.example.ui.components.GreenMid
+import com.example.ui.components.StoneGoldBilingualButton
 import kotlinx.coroutines.isActive
 
 @Composable
 fun AuthScreen(
     onAuthSuccess: () -> Unit,
+    onEnterLocalPreviewMode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -75,16 +81,11 @@ fun AuthScreen(
     val credentialManager = remember(context) { CredentialManager.create(context) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showDiagnosticsModal by remember { mutableStateOf(false) }
 
-    // Attempt silent auto-sign-in once on launch
+    // Automatically run dependency & network diagnostics on launch to populate Logcat ('FirebaseDiag')
     LaunchedEffect(Unit) {
-        attemptAutoSignIn(
-            context = context,
-            credentialManager = credentialManager,
-            onAuthSuccess = onAuthSuccess,
-            onUnauthenticated = {},
-            scope = coroutineScope
-        )
+        FirebaseDiagnostics.runFullDiagnostics(context)
     }
 
     // Animate 3D background vista on AuthScreen
@@ -144,13 +145,13 @@ fun AuthScreen(
                 )
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(20.dp),
+                .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = 400.dp)
+                    .widthIn(max = 410.dp)
                     .shadow(16.dp, RoundedCornerShape(22.dp))
                     .clip(RoundedCornerShape(22.dp))
                     .background(
@@ -159,16 +160,16 @@ fun AuthScreen(
                         )
                     )
                     .border(3.5.dp, Color(0xFFD49B35), RoundedCornerShape(22.dp))
-                    .padding(24.dp),
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Text(
                     text = "HORIZON\nDASH",
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Black,
-                    fontSize = 38.sp,
-                    lineHeight = 38.sp,
+                    fontSize = 34.sp,
+                    lineHeight = 34.sp,
                     letterSpacing = 2.sp,
                     textAlign = TextAlign.Center,
                     style = TextStyle(
@@ -186,31 +187,38 @@ fun AuthScreen(
                 Text(
                     text = "WORLDS & LEGENDS • CLOUD SYNC",
                     color = GoldLight,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.2.sp
                 )
 
                 Text(
-                    text = "Sign in with Google to sync your coins, rubies, character upgrades, daily challenges, and world high scores to Firebase Cloud.",
+                    text = "Sign in with Google to sync your coins, rubies, upgrades, and high scores to Firebase Cloud, or launch Preview Mode to test in the emulator immediately.",
                     color = Color(0xFFEAE5DC),
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     textAlign = TextAlign.Center
                 )
 
                 if (!errorMessage.isNullOrBlank()) {
                     Text(
                         text = errorMessage!!,
-                        color = Color(0xFFFF8FA3),
+                        color = Color(0xFFFFD269),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.testTag("auth_error_text")
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x66000000))
+                            .border(1.dp, Color(0xFFFF8FA3), RoundedCornerShape(10.dp))
+                            .padding(10.dp)
+                            .testTag("auth_error_text")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
+                // 1. Primary Google Sign-In via Jetpack Credential Manager
                 Button(
                     onClick = {
                         isLoading = true
@@ -229,6 +237,9 @@ fun AuthScreen(
                             scope = coroutineScope,
                             onAuthCancelled = {
                                 isLoading = false
+                                errorMessage =
+                                    "Google Play Services sign-in was dismissed or has no OS account in the preview emulator. " +
+                                        "Tap 'PLAY IN PREVIEW MODE' or 'DIAGNOSTICS' below!"
                             }
                         )
                     },
@@ -240,7 +251,7 @@ fun AuthScreen(
                     shape = RoundedCornerShape(32.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(50.dp)
                         .minimumInteractiveComponentSize()
                         .border(2.5.dp, GoldMid, RoundedCornerShape(32.dp))
                         .testTag("google_sign_in_button")
@@ -262,7 +273,64 @@ fun AuthScreen(
                         )
                     }
                 }
+
+                // 2. Browser OAuth Fallback (bypasses Play Services OS account screen on emulators)
+                StoneGoldBilingualButton(
+                    enLabel = "🌐 SIGN IN VIA BROWSER (WEB OAUTH)",
+                    hiLabel = "ब्राउज़र से गूगल लॉग इन करें",
+                    testTag = "google_web_sign_in_button",
+                    onClick = {
+                        val activity = context.findActivity()
+                        if (activity != null) {
+                            isLoading = true
+                            errorMessage = null
+                            signInWithGoogleWebOAuth(
+                                activity = activity,
+                                onAuthSuccess = {
+                                    isLoading = false
+                                    onAuthSuccess()
+                                },
+                                onAuthError = { msg ->
+                                    isLoading = false
+                                    errorMessage = msg
+                                },
+                                scope = coroutineScope
+                            )
+                        } else {
+                            errorMessage = "Activity context unavailable for browser sign-in."
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                )
+
+                // 3. Emulator Preview / Local Offline Mode (zero unauthenticated Firestore calls)
+                StoneGoldBilingualButton(
+                    enLabel = "▶ PLAY IN PREVIEW MODE (LOCAL)",
+                    hiLabel = "प्रिव्यू मोड में अभी खेलें (बिना लॉग इन)",
+                    testTag = "preview_offline_mode_button",
+                    isHighlighted = true,
+                    onClick = onEnterLocalPreviewMode,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+                )
+
+                // 4. Firebase Auth, Google Sign-In & Network Diagnostic Inspector
+                StoneGoldBilingualButton(
+                    enLabel = "🩺 DIAGNOSTICS & NETWORK LOG",
+                    hiLabel = "फ़ायरबेस और नेटवर्क डायग्नोस्टिक्स",
+                    testTag = "open_auth_diagnostics_button",
+                    onClick = { showDiagnosticsModal = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
+                )
             }
+        }
+
+        if (showDiagnosticsModal) {
+            FirebaseDiagnosticModal(
+                onDismiss = { showDiagnosticsModal = false }
+            )
         }
     }
 }

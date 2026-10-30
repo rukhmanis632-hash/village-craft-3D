@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.graphics.Camera3D
+import com.example.graphics.Character3DRenderer.renderChronoPedestalAndCore3D
 import com.example.graphics.Character3DRenderer.renderRunnerCharacter3D
 import com.example.graphics.WorldEnvironmentRenderer.renderAmbientParticles3D
 import com.example.graphics.WorldEnvironmentRenderer.renderEntity3D
@@ -100,9 +102,21 @@ fun HorizonDashApp(
         modifier = Modifier
             .fillMaxSize()
             .testTag("horizon_dash_root")
+            .pointerInput(viewModel.screenState, viewModel.activeModal, viewModel.isIntroCutsceneActive) {
+                if (viewModel.isIntroCutsceneActive) {
+                    detectTapGestures(
+                        onTap = { viewModel.skipIntroCutscene() }
+                    )
+                }
+            }
             .pointerInput(viewModel.screenState, viewModel.activeModal) {
                 detectDragGestures(
                     onDragStart = {
+                        if (viewModel.isIntroCutsceneActive) {
+                            viewModel.skipIntroCutscene()
+                            gestureConsumed = 1f
+                            return@detectDragGestures
+                        }
                         dragTotalX = 0f
                         dragTotalY = 0f
                         gestureConsumed = 0f
@@ -146,7 +160,7 @@ fun HorizonDashApp(
             }
         }
 
-        // 3. Universal Modal Overlay (Upgrades, Characters, Boards, Leaderboard, Settings, Shop, Pause, 3D Showcase)
+        // 3. Universal Modal Overlay (Upgrades, Characters, Boards, Leaderboard, Settings, Shop, Pause, 3D Showcase, Story Lore)
         GameModalOverlay(viewModel = viewModel)
 
         // 4. Toast Banner
@@ -196,23 +210,65 @@ fun HorizonDash3DViewport(
     val isJumping = viewModel.isJumping
     val isSliding = viewModel.isSliding
     val isBoosting = viewModel.boostTimer > 0f
+    val isHyperRun = viewModel.isHyperRun
     val hasShield = viewModel.hasShield
     val isInspect = viewModel.activeModal == ModalType.INSPECT_3D
-    val orbitYaw = if (isInspect) viewModel.inspectYawRad else 0f
+    val isIntro = viewModel.isIntroCutsceneActive
+    val introElapsed = viewModel.introElapsedSec
+    val portalFlash = viewModel.portalMorphFlashTimer
+
+    // Smooth camera blend during the 3-second Intro Cutscene (IntroCinematic)
+    val introBlend = if (isIntro) {
+        ((introElapsed - 1.7f) / 1.3f).coerceIn(0f, 1f)
+    } else {
+        1f
+    }
+    val orbitYaw = when {
+        isInspect -> viewModel.inspectYawRad
+        isIntro -> (1f - introBlend) * 0.52f
+        else -> 0f
+    }
+    val camRoll = if (isInspect) 0f else viewModel.cameraRollRad
+    val fovMult = if (isInspect) 1.0f else viewModel.dynamicFovMultiplier
+    val shakeX = if (isInspect) 0f else viewModel.screenShakeX
+    val shakeY = if (isInspect) 0f else viewModel.screenShakeY
+    val nearMissFlash = viewModel.nearMissFlashTimer
 
     Canvas(
         modifier = modifier.testTag("canvas_3d_viewport")
     ) {
-        val camZ = if (isInspect) 5.2f else 8.6f
-        val camY = if (isInspect) 3.2f else (5.0f + py * 0.28f)
-        val camX = if (isInspect) 0f else (px * 0.42f)
+        val camZ = when {
+            isInspect -> 5.2f
+            isIntro -> 5.5f + introBlend * 3.1f
+            else -> 8.6f
+        }
+        val camY = when {
+            isInspect -> 3.2f
+            isIntro -> 2.75f + introBlend * 2.25f
+            else -> (5.0f + py * 0.28f)
+        }
+        val camX = when {
+            isInspect -> 0f
+            isIntro -> -0.65f * (1f - introBlend) + (px * 0.42f) * introBlend
+            else -> (px * 0.42f)
+        }
+        val camPitch = when {
+            isInspect -> 0.16f
+            isIntro -> 0.14f + introBlend * 0.09f
+            else -> 0.23f
+        }
+
         val cam = Camera3D(
             screenWidth = size.width,
             screenHeight = size.height,
             camX = camX,
             camY = camY,
             camZ = camZ,
-            pitchRad = if (isInspect) 0.16f else 0.23f
+            pitchRad = camPitch,
+            rollRad = camRoll,
+            fovMultiplier = fovMult,
+            shakeX = shakeX,
+            shakeY = shakeY
         )
 
         // 1. Sky Dome, Horizon Monuments, Volumetric God-Rays / Flying Cars / Lava Falls / Peaks
@@ -235,7 +291,21 @@ fun HorizonDash3DViewport(
             }
         }
 
-        // 5. Sculpted Anatomical 3D Runner Character
+        // 4B. Ancient Stone Pedestal & Levitating Chrono Core Relic (during 3s Intro Cutscene)
+        if (isIntro) {
+            val pedestalZ = -1.25f + maxOf(0f, introElapsed - 1.9f) * 8.5f
+            renderChronoPedestalAndCore3D(
+                cam = cam,
+                pedestalZ = pedestalZ,
+                coreGrabbed = introElapsed >= 0.65f,
+                introElapsedSec = introElapsed,
+                playerX = px,
+                playerY = py,
+                timeSec = timeSec
+            )
+        }
+
+        // 5. Sculpted Anatomical 3D Runner Character + Futuristic Sneaker Trails
         val targetX = viewModel.targetLane * 3.4f
         val laneTilt = ((px - targetX) * 0.08f).coerceIn(-0.22f, 0.22f)
         renderRunnerCharacter3D(
@@ -252,7 +322,8 @@ fun HorizonDash3DViewport(
             hasShield = hasShield,
             laneTiltRad = laneTilt,
             orbitYawRad = orbitYaw,
-            timeSec = timeSec
+            timeSec = timeSec,
+            isHyperRun = isHyperRun
         )
 
         // 6. Depth-Sorted 3D Entities Passing Camera (z > 0.1f)
@@ -262,7 +333,68 @@ fun HorizonDash3DViewport(
             }
         }
 
-        // 7. 3D Ambient Particles (Jungle Fireflies / Cyber Data Motes / Volcanic Embers / Snowflakes)
+        // 7. 3D Ambient Particles
         renderAmbientParticles3D(cam = cam, world = world, particles = viewModel.particles)
+
+        // 8B. Dimensional Portal Warp Flash Overlay
+        if (portalFlash > 0f) {
+            val pAlpha = (portalFlash / 28f).coerceIn(0f, 1f) * 0.55f
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF00F0FF).copy(alpha = pAlpha),
+                        Color(0xFFB57CFF).copy(alpha = pAlpha * 0.8f),
+                        Color.Transparent
+                    )
+                )
+            )
+        }
+
+        // 8C. Hyper-Dynamic Chromatic Aberration Edge Vignette & Radial Speed Lines (Boost / Hyper Run / Near-Miss)
+        if (!isInspect && (isHyperRun || isBoosting || nearMissFlash > 0f)) {
+            val intensity = when {
+                nearMissFlash > 0f -> (nearMissFlash / 20f).coerceIn(0.25f, 1f)
+                isHyperRun -> 0.85f
+                else -> 0.55f
+            }
+            // Left Cyan & Right Acid-Magenta Chromatic Fringe
+            drawRect(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFF00F0FF).copy(alpha = 0.28f * intensity),
+                        Color.Transparent,
+                        Color.Transparent,
+                        Color(0xFFFF00AA).copy(alpha = 0.28f * intensity)
+                    )
+                )
+            )
+            // Radial anime/cyber speed lines around screen edges
+            val cx = size.width * 0.5f
+            val cy = size.height * 0.42f
+            for (i in 0 until 14) {
+                val angle = i * 0.448f + (timeSec * 8f)
+                val dx = kotlin.math.cos(angle)
+                val dy = kotlin.math.sin(angle)
+                val innerR = size.width * 0.36f
+                val outerR = size.width * 0.68f
+                val lineCol = if (i % 2 == 0) Color(0xFF64FFDA) else Color(0xFFFF6EC7)
+                drawLine(
+                    color = lineCol.copy(alpha = 0.36f * intensity),
+                    start = androidx.compose.ui.geometry.Offset(cx + dx * innerR, cy + dy * innerR),
+                    end = androidx.compose.ui.geometry.Offset(cx + dx * outerR, cy + dy * outerR),
+                    strokeWidth = 3.2f
+                )
+            }
+        }
+
+        // 9. Celebratory Confetti Burst Particles (Flash Micro-Mission Clear & New World Record)
+        for (c in viewModel.confettiParticles) {
+            drawCircle(
+                color = c.color,
+                radius = c.sizeDp * 1.4f,
+                center = androidx.compose.ui.geometry.Offset(size.width * c.xRatio, size.height * c.yRatio)
+            )
+        }
     }
 }
+

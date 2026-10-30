@@ -6,6 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,17 +40,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(auth: FirebaseAuth = Firebase.auth) {
     val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
+    var isLocalPreviewMode by rememberSaveable { mutableStateOf(false) }
     val user = currentUser
 
-    if (user == null) {
+    if (user == null && !isLocalPreviewMode) {
         AuthScreen(
-            onAuthSuccess = {}
+            onAuthSuccess = {},
+            onEnterLocalPreviewMode = { isLocalPreviewMode = true }
         )
-    } else {
+    } else if (user != null) {
         val currentUserId = user.uid
         val displayName = user.displayName ?: user.email?.substringBefore("@") ?: "Explorer Leo"
         val gameViewModel: GameViewModel = viewModel(
-            key = currentUserId,
+            key = "cloud_$currentUserId",
             factory = viewModelFactory {
                 initializer {
                     val app = checkNotNull(this[APPLICATION_KEY]) {
@@ -64,5 +69,21 @@ fun AppNavigation(auth: FirebaseAuth = Firebase.auth) {
             }
         )
         HorizonDashApp(viewModel = gameViewModel)
+    } else {
+        // Local Preview Mode: strictly local SharedPreferences state, zero unauthenticated Firestore calls
+        val localViewModel: GameViewModel = viewModel(
+            key = "local_preview_session",
+            factory = viewModelFactory {
+                initializer {
+                    GameViewModel(
+                        repository = null,
+                        currentUserId = null,
+                        userDisplayName = "Preview Explorer (Local)",
+                        onRequestSignIn = { isLocalPreviewMode = false }
+                    )
+                }
+            }
+        )
+        HorizonDashApp(viewModel = localViewModel)
     }
 }

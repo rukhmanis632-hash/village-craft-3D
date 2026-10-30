@@ -26,8 +26,10 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,10 +43,12 @@ import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.auth.signOutUser
+import com.example.model.CHRONO_LORE_PANELS
 import com.example.model.HOVERBOARDS
 import com.example.model.ModalType
 import com.example.model.RUNNER_CHARACTERS
 import com.example.model.WORLD_THEMES
+import com.example.ui.components.FirebaseDiagnosticModal
 import com.example.ui.components.GoldLight
 import com.example.ui.components.GoldMid
 import com.example.ui.components.GreenBevelButton
@@ -69,12 +73,13 @@ fun GameModalOverlay(
 
     val title = when (modal) {
         ModalType.UPGRADES -> "UPGRADES / अपग्रेड"
-        ModalType.CHARACTERS -> "CHARACTERS / पात्र"
+        ModalType.CHARACTERS -> "3D CHARACTERS / पात्र"
         ModalType.BOARDS -> "HOVERBOARDS / बोर्ड"
         ModalType.LEADERBOARD -> "LEADERBOARD / लीडरबोर्ड"
         ModalType.SETTINGS -> "SETTINGS & AUDIO / सेटिंग्स"
         ModalType.SHOP -> "SHOP / शॉप"
         ModalType.PAUSE -> "GAME PAUSED / खेल रुका है"
+        ModalType.STORY_LORE -> "STORY & 3D HEROES / कहानी"
         else -> ""
     }
 
@@ -155,6 +160,7 @@ fun GameModalOverlay(
                     ModalType.SETTINGS -> SettingsModalBody(viewModel)
                     ModalType.SHOP -> ShopModalBody(viewModel)
                     ModalType.PAUSE -> PauseModalBody(viewModel)
+                    ModalType.STORY_LORE -> StoryLoreModalBody(viewModel)
                     else -> {}
                 }
             }
@@ -215,14 +221,23 @@ private fun CharactersModalBody(viewModel: GameViewModel) {
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(char.shirtColor)
-                        .border(2.dp, char.accentGlow, CircleShape)
-                )
+                        .border(2.2.dp, char.accentGlow, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = char.badgeEmoji, fontSize = 20.sp)
+                }
                 Column {
                     Text(text = char.name, color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
-                    Text(text = "${char.hiName} • ${char.roleTitle}", color = Color(0xFFFFD269), fontSize = 12.sp)
+                    Text(text = "${char.hiName} • ${char.roleTitle}", color = Color(0xFFFFD269), fontSize = 11.sp)
+                    Text(
+                        text = char.signatureGear,
+                        color = Color(0xFF80F8FF),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                     Text(
                         text = "Speed ${char.speedRating} • Aura +${char.auraBonus}",
                         color = Color(0xFFB8E986),
@@ -324,7 +339,13 @@ private fun LeaderboardModalBody(viewModel: GameViewModel) {
             )
         }
         is UiState.Success -> {
-            if (state.data.isEmpty()) {
+            if (viewModel.currentUserId == null) {
+                Text(
+                    text = "Local Preview Mode active — world high scores above are saved on-device. Sign in with Google via Settings to sync run history to Firestore.",
+                    color = Color(0xFFFFD269),
+                    fontSize = 12.sp
+                )
+            } else if (state.data.isEmpty()) {
                 Text(
                     text = "Complete a run to record your score to Firebase Cloud!",
                     color = Color(0xFFCCCCCC),
@@ -365,6 +386,14 @@ private fun SettingsModalBody(viewModel: GameViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val credentialManager = remember(context) { CredentialManager.create(context) }
+    var showDiagnostics by remember { mutableStateOf(false) }
+
+    if (showDiagnostics) {
+        FirebaseDiagnosticModal(
+            onDismiss = { showDiagnostics = false }
+        )
+        return
+    }
 
     // Google Account & Cloud Sync Status Row
     if (viewModel.currentUserId != null) {
@@ -397,6 +426,56 @@ private fun SettingsModalBody(viewModel: GameViewModel) {
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             )
         }
+    } else {
+        ModalRowCard {
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    text = "📱 Local Preview Mode",
+                    color = GoldLight,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = "On-device storage • Sign in for Cloud Sync",
+                    color = Color(0xFFFFD269),
+                    fontSize = 11.sp
+                )
+            }
+            StoneGoldBilingualButton(
+                enLabel = "SIGN IN",
+                hiLabel = "लॉग इन",
+                testTag = "settings_sign_in_btn",
+                isHighlighted = true,
+                onClick = {
+                    viewModel.closeModal()
+                    viewModel.onRequestSignIn()
+                },
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+            )
+        }
+    }
+
+    ModalRowCard {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = "🩺 Auth & Network Diagnostics",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+            Text(
+                text = "Check Firebase SDK, OAuth & Session Error Logs",
+                color = Color(0xFFCCCCCC),
+                fontSize = 11.sp
+            )
+        }
+        StoneGoldBilingualButton(
+            enLabel = "INSPECT",
+            hiLabel = "जाँचें",
+            testTag = "settings_diagnostics_btn",
+            onClick = { showDiagnostics = true },
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+        )
     }
 
     ModalRowCard {
@@ -699,5 +778,164 @@ private fun Inspect3DShowcaseOverlay(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StoryLoreModalBody(viewModel: GameViewModel) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "THE CHRONO CORE PROTOCOL • COMIC ARCHIVE",
+            color = Color(0xFF64FFDA),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Black
+        )
+
+        // 4 Comic-Style Story Panels
+        CHRONO_LORE_PANELS.forEach { panel ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(panel.primaryColor, Color(0xFF14111D))
+                        )
+                    )
+                    .border(2.dp, panel.accentColor, RoundedCornerShape(14.dp))
+                    .padding(12.dp)
+                    .testTag("lore_comic_panel_${panel.panelNumber}"),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = panel.title,
+                            color = panel.accentColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = panel.hiTitle,
+                            color = Color(0xFFFFD269),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x55000000))
+                            .border(1.5.dp, panel.accentColor, RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = panel.badgeEmoji, fontSize = 22.sp)
+                    }
+                }
+                Text(
+                    text = panel.caption,
+                    color = Color(0xFFEEEEEE),
+                    fontSize = 12.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0x66000000))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = panel.dialogueQuote,
+                        color = panel.accentColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Iconic 3D Runner Roster Encyclopedia Card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0x66000000))
+                .border(1.5.dp, GoldMid, RoundedCornerShape(14.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "👟 ICONIC 3D RUNNER CREW (TAP TO EQUIP)",
+                color = GoldLight,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black
+            )
+            RUNNER_CHARACTERS.forEach { hero ->
+                val isSelected = viewModel.selectedCharId == hero.id
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color(0x4464FFDA) else Color(0x33000000))
+                        .border(
+                            1.dp,
+                            if (isSelected) hero.accentGlow else Color(0x44FFFFFF),
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable {
+                            viewModel.selectCharacter(hero.id)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(text = hero.badgeEmoji, fontSize = 20.sp)
+                        Column {
+                            Text(
+                                text = "${hero.name} • ${hero.roleTitle}",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                text = hero.signatureGear,
+                                color = hero.accentGlow,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (isSelected) {
+                        Text(
+                            text = "EQUIPPED ✓",
+                            color = Color(0xFF64FFDA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+        }
+
+        GreenBevelButton(
+            text = "▶ PLAY 3s INTRO & RUN",
+            iconText = "🎬",
+            testTag = "lore_start_run_btn",
+            onClick = { viewModel.startGame() },
+            modifier = Modifier.fillMaxWidth(),
+            fontSize = 16.sp
+        )
     }
 }
